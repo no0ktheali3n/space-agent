@@ -10,7 +10,7 @@ export const DEFAULT_CHAT_SETTINGS = {
   apiEndpoint: "https://openrouter.ai/api/v1/chat/completions",
   apiKey: "",
   model: "openai/gpt-5.4-mini",
-  paramsText: ""
+  paramsText: "temperature:0.2"
 };
 
 function readJson(key, fallbackValue) {
