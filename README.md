@@ -1,12 +1,12 @@
 <p align="center">
-  <a href="https://space-agent.ai"><img src="./server/pages/res/astronaut_no_bg.png" alt="Space Agent astronaut" width="300" /></a>
+  <a href="https://space-agent.ai"><img src="./server/pages/res/astronaut_no_bg.webp" alt="Space Agent astronaut" width="280" /></a>
 </p>
 
 <h1 align="center">Space Agent</h1>
 
-<p align="center">
-  <strong>Your personal AI workspace, running completely in the browser on your machine.</strong>
-</p>
+<h3 align="center">
+  <strong>Your personal AI workspace. Lives in your browser. Belongs to you.</strong>
+</h3>
 
 <p align="center">
   <a href="https://space-agent.ai"><img alt="Try Live Now!" height="64" src="https://img.shields.io/badge/Try%20Live%20Now%21-00D9FF?style=for-the-badge&labelColor=07111F&color=00D9FF" /></a>
@@ -16,33 +16,28 @@
   <a href="#host"><img alt="Host yourself as a server" height="50" src="https://img.shields.io/badge/Host%20yourself%20as%20a%20server-FFFFFF?style=for-the-badge&labelColor=07111F&color=FFFFFF" /></a>
 </p>
 
-<p align="center">
-  Created by <a href="https://agent-zero.ai"><strong>Agent Zero</strong></a>
-  &nbsp;|&nbsp;
-  <a href="https://discord.gg/B8KZKNsPpj">Discord</a>
-  &nbsp;|&nbsp;
-  <a href="https://www.youtube.com/@AgentZeroFW">YouTube</a>
-</p>
+<h3 align=center>Created by <a href="https://agent-zero.ai">Agent Zero</a>.</h3>
 
 <p align="center">
+  <a href="https://discord.gg/B8KZKNsPpj"><img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?style=flat&logo=discord&logoColor=white" /></a>
+  &nbsp;
+  <a href="https://www.youtube.com/@AgentZeroFW"><img alt="YouTube" src="https://img.shields.io/badge/YouTube-FF0000?style=flat&logo=youtube&logoColor=white" /></a>
+  &nbsp;
   <a href="https://deepwiki.com/agent0ai/space-agent"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
-  <a href="https://github.com/agent0ai/space-agent/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-59F0A8" /></a>
-  <img alt="Node.js 20+" src="https://img.shields.io/badge/node.js-20%2B-00D9FF" />
-  <img alt="Runs in browser" src="https://img.shields.io/badge/runs%20in-the%20browser-FFFFFF" />
 </p>
 
 ---
 
 ## Meet Space Agent
 
-Space Agent is an AI control room you can open in a normal browser. Chat with your agent, build spaces, add widgets, manage files, try local models, and keep the whole experience close to your machine.
+Space Agent gives AI a place to live, right in your browser. Chat with your agent, build spaces, add widgets, manage files, try local models, and keep the whole experience close to your machine.
 
 It is made for people who want an agent they can actually own: run it live, download the app, or host it yourself with a few commands.
 
 <table>
   <tr>
     <td align="center" width="33%">
-      <img src="./app/L0/_all/mod/_core/onscreen_agent/res/helmet_no_bg_256.webp" alt="Agent helmet" width="92" />
+      <img src="./app/L0/_all/mod/_core/admin/res/helmet_no_bg_256.webp" alt="Agent helmet" width="92" />
       <br />
       <strong>Your agent, on screen</strong>
       <br />
@@ -56,7 +51,7 @@ It is made for people who want an agent they can actually own: run it live, down
       Use the desktop app or run your own server.
     </td>
     <td align="center" width="33%">
-      <img src="./server/pages/res/astronaut_no_bg.webp" alt="Space Agent avatar" width="92" />
+      <img src="./app/L0/_all/mod/_core/admin/res/astronaut_no_bg.webp" alt="Space Agent avatar" width="92" />
       <br />
       <strong>Built for AI teamwork</strong>
       <br />
@@ -67,34 +62,11 @@ It is made for people who want an agent they can actually own: run it live, down
 
 ## Why It Feels Different
 
-- **It runs where you work.** The agent experience runs in the browser on the client side, so the main workspace stays fast, inspectable, and easy to shape.
-- **It is yours to extend.** Add pages, skills, widgets, spaces, and custom behavior without turning the project into a giant backend service.
-- **It can stay local.** Run the desktop app, bind it to localhost, or self-host it for your own users.
-- **It respects layers.** Core code, group customizations, and user customizations live in separate layers so personal changes do not have to fight the base system.
-- **It documents itself for humans and AI.** The repo uses an `AGENTS.md` documentation hierarchy plus DeepWiki so both contributors and AI agents can find the right source of truth.
+**It runs where you already work.** The agent can click every button you click, and edit any file in the workspace. There's no "agent mode" with a smaller set of tools, it works with the whole app the same way you do.
 
-## How It Works
+**Local-first when you want it.** Run the native app and nothing leaves it, or self-host an instance and keep everything in your own network. No mandatory cloud, no telemetry you didn't opt into.
 
-```mermaid
-flowchart LR
-  you[You] --> app[Space Agent in the browser]
-  app --> agent[Chat, spaces, widgets,<br/>skills, and files]
-  app --> local[Your local or hosted server]
-  local --> login[Login and permissions]
-  local --> storage[Your custom spaces<br/>and user data]
-  local --> web[Fetch proxy when<br/>the browser needs help]
-  desktop[Desktop app] --> local
-```
-
-For people building on it, the useful landmarks are:
-
-- `/` - main workspace
-- `/admin` - admin console
-- `/login` - sign in
-- `/enter` - launcher
-- `/api/<endpoint>` - server APIs
-- `/mod/...` - browser-loaded features and assets
-- `L0`, `L1`, and `L2` - core, group, and user layers
+**Reshape it without rebuilding it.** Ask for a new page, a new tool, or a different default, and the agent writes the code, and reloads. Nothing to learn and to maintain. The app you're customizing and the agent are the same thing.
 
 ## What You Can Do
 
@@ -121,128 +93,79 @@ For people building on it, the useful landmarks are:
   </tr>
 </table>
 
-## Quick Start
+## Features
 
-### Run Locally Via App
+**Spaces.** Dashboards, tools, widgets: arrange them the way you think. Each space is yours to shape; the agent helps you build and refine them.
 
-Download the latest desktop build from the [GitHub Releases page](https://github.com/agent0ai/space-agent/releases/latest). The app starts the local runtime for you and opens Space Agent without making you manage a server by hand.
+**Real work, not just chat.** Open PDFs, print documents, generate reports, download files, call external APIs, pull local models. The agent handles it, inside the same workspace you're already in.
 
-<a id="host"></a>
+**Self-extending.** The agent can write new modules on the fly, for you, for your team, or for everyone on the server. No plugins, no waiting. Ask for a feature and it builds it.
 
-### Host Yourself As A Server
+**Time travel.** Every data folder is a git repository. If something breaks, roll back to any earlier state. History is automatic; restoration is one step.
 
-Clone it, install dependencies, set a durable customware path, create an admin, and start the production-ready zero-downtime server with auto-update.
+**Admin area.** A persistent layer that keeps the system running even when the agent is rewriting parts of itself. The agent can modify the workspace, but it can't break its own foundation.
+
+## Try it in 30 seconds
+
+# [space-agent.ai](https://space-agent.ai)
+
+No signup. Type a message and you have your first Space.
+
+## Run it yourself
+
+### The desktop app
+
+Grab the latest build from [GitHub Releases](https://github.com/agent0ai/space-agent/releases/latest). It starts the runtime for you and opens Space Agent. No terminal required.
+
+### A real server, for you or your team
 
 ```bash
-# clone, open, install dependencies
 git clone https://github.com/agent0ai/space-agent.git
 cd space-agent
 npm install
 
-# keep users, groups, and personal spaces outside the source checkout
-node space set CUSTOMWARE_PATH=/srv/space-agent/customware
-
-# create administrator user
+# create yourself an admin
 node space user create admin --password "change-me-now" --full-name "Admin" --groups _admin
 
-# production-ready zero-downtime server with auto-update enabled by default
-node space supervise HOST=0.0.0.0 PORT=3000
-```
-
-Open:
-
-- App: `http://localhost:3000/`
-- Admin: `http://localhost:3000/admin`
-
-For simple local source-checkout runs without the supervisor, use `node space serve`:
-
-```bash
+# zero-downtime server, with auto-update
 node space serve
 ```
 
-`node space supervise` requires `CUSTOMWARE_PATH`. It runs the public server as a proxy, starts replaceable `space serve` children on private loopback ports, restarts the active child if it crashes, stages source updates in release directories, switches only after the replacement is healthy, and drains old streams before cutting the old instance off. Auto-update checks run every 300 seconds by default; use `--auto-update-interval 0` when you want crash-restart supervision without update checks.
-
-`node space update` and `node space supervise` both use `GIT_URL` when you want updates to come from a repo other than the local checkout's `origin` remote. If `GIT_URL` is unset, they use the local `origin` remote URL and only then fall back to the canonical Space Agent repository.
-
-For larger multi-instance deployments, use the same `SPACE_AUTH_PASSWORD_SEAL_KEY` and `SPACE_AUTH_SESSION_HMAC_KEY` values on every instance so logins keep working across them.
-
-### Admin User Cheatsheet
-
-Create another admin user:
+### For development
 
 ```bash
-node space user create alice --password "replace-this" --full-name "Alice" --groups _admin
+npm run dev          # server with auto-reload
 ```
-
-Reset a password:
+### For production
 
 ```bash
-node space user password alice --password "new-password"
+node space supervise          # production server
 ```
 
-Start in single-user local mode with implicit `_admin` access:
+<details>
+<summary><strong>Useful CLI commands</strong></summary>
 
-```bash
-node space serve SINGLE_USER_APP=true
-```
-
-## Useful Commands
-
-| Command | Purpose |
+| Command | What it does |
 | --- | --- |
 | `node space serve` | Start Space Agent. |
-| `node space supervise` | Run the production-ready zero-downtime server with auto-update and crash restart. |
+| `node space supervise` | Production runner with zero-downtime updates and crash restart. |
 | `node space get` | Show saved settings. |
-| `node space set KEY=VALUE [KEY=VALUE ...]` | Save one or more settings in `.env`. |
-| `node space user create` | Create a user, with optional `--groups`. |
-| `node space user password` | Reset a user's password and clear sessions. |
+| `node space set KEY=VALUE` | Save settings to `.env`. |
+| `node space user create` | Create a user, optionally with `--groups`. |
+| `node space user password` | Reset a password and clear sessions. |
 | `node space group create` | Create an `L1/<group>` group. |
-| `node space group add` | Add a user or group, creating the target group if needed. |
-| `node space update` | Update a source checkout from Git. |
-| `node space help` | Show command help discovered from command modules. |
+| `node space group add` | Add a user or group to another group. |
+| `node space update` | Pull updates from Git. |
+| `node space help` | Discover everything else. |
 
-Runtime settings live in [`commands/params.yaml`](./commands/params.yaml). For `CUSTOMWARE_PATH`, save the value with `node space set CUSTOMWARE_PATH=<path>` before creating users or groups so every command uses the same writable data location.
+Settings live in [`commands/params.yaml`](./commands/params.yaml).
 
-## Documentation
+</details>
 
-Space Agent uses an `AGENTS.md` AI automated documentation hierarchy in cooperation with DeepWiki.
+## AI-ready documentation
 
-<p>
-  <a href="https://deepwiki.com/agent0ai/space-agent"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
-</p>
+Space Agent ships with an `AGENTS.md` documentation hierarchy. It's written and followed by AI. DeepWiki indexes the rest.
 
-The DeepWiki badge links to `https://deepwiki.com/agent0ai/space-agent` so DeepWiki can discover and index the project automatically.
+If you want the deep tour, start here:
 
-Documentation roles:
-
-- [`README.md`](./README.md) is the public source of truth for what Space Agent is, how to start it, and where to go next.
-- [`AGENTS.md`](./AGENTS.md) is the binding repo-wide implementation contract for AI agents and contributors.
-- [`app/AGENTS.md`](./app/AGENTS.md), [`server/AGENTS.md`](./server/AGENTS.md), [`commands/AGENTS.md`](./commands/AGENTS.md), and [`packaging/AGENTS.md`](./packaging/AGENTS.md) own the core domain contracts.
-- [`app/L0/_all/mod/_core/documentation/docs/`](./app/L0/_all/mod/_core/documentation/docs/) contains the supplemental agent-facing documentation module used inside the app.
-- [`app/L0/_all/mod/_core/documentation/docs/architecture/overview.md`](./app/L0/_all/mod/_core/documentation/docs/architecture/overview.md) is the shortest system map for implementation work.
-
-When code changes, the closest owning `AGENTS.md` file must change with it if contracts, workflows, ownership boundaries, or stable behavior changed. The README should stay compelling and accurate, but durable implementation rules belong in `AGENTS.md`.
-
-## Source Map
-
-| Area | Start here |
-| --- | --- |
-| Browser app | [`app/`](./app/) and [`app/AGENTS.md`](./app/AGENTS.md) |
-| Server support | [`server/`](./server/) and [`server/AGENTS.md`](./server/AGENTS.md) |
-| CLI commands | [`commands/`](./commands/) and [`commands/AGENTS.md`](./commands/AGENTS.md) |
-| Desktop packaging | [`packaging/`](./packaging/) and [`packaging/AGENTS.md`](./packaging/AGENTS.md) |
-| Runtime overview | [`architecture/overview.md`](./app/L0/_all/mod/_core/documentation/docs/architecture/overview.md) |
-| Desktop releases | [`GitHub Releases`](https://github.com/agent0ai/space-agent/releases) |
-| DeepWiki index | [`deepwiki.com/agent0ai/space-agent`](https://deepwiki.com/agent0ai/space-agent) |
-
-## Community
-
-Space Agent is created by [Agent Zero](https://agent-zero.ai).
-
-- Website: [agent-zero.ai](https://agent-zero.ai)
-- Discord: [discord.gg/B8KZKNsPpj](https://discord.gg/B8KZKNsPpj)
-- YouTube: [@AgentZeroFW](https://www.youtube.com/@AgentZeroFW)
-
-## License
-
-Space Agent is released under the [MIT License](./LICENSE).
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/agent0ai/space-agent)
