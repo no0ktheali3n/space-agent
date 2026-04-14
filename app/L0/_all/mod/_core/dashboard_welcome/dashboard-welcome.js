@@ -12,6 +12,45 @@ import {
 } from "/mod/_core/spaces/space-metadata.js";
 
 const EXAMPLE_MANIFEST_PATTERN = "mod/_core/dashboard_welcome/examples/*/space.yaml";
+const EXAMPLE_ORDER = Object.freeze([
+  "daily-news",
+  "crypto-dashboard",
+  "retro-arcade",
+  "agent-zero-videos"
+]);
+const RESOURCE_LINKS = Object.freeze([
+  {
+    href: "https://github.com/agent0ai/space-agent",
+    id: "github-repo",
+    label: "GitHub Repo"
+  },
+  {
+    href: "https://deepwiki.com/agent0ai/space-agent",
+    id: "deepwiki-docs",
+    label: "DeepWiki Docs"
+  },
+  {
+    href: "https://agent-zero.ai",
+    id: "agent-zero-site",
+    label: "Agent Zero"
+  },
+  {
+    href: "https://discord.gg/B8KZKNsPpj",
+    id: "discord",
+    label: "Discord"
+  },
+  {
+    href: "https://www.youtube.com/@AgentZeroFW",
+    id: "youtube",
+    label: "YouTube"
+  },
+  {
+    href: "https://x.com/Agent0ai",
+    id: "x",
+    label: "X"
+  }
+]);
+const EXAMPLE_ORDER_INDEX = new Map(EXAMPLE_ORDER.map((id, index) => [id, index]));
 
 function getRuntime() {
   const runtime = globalThis.space;
@@ -82,6 +121,25 @@ function normalizeExampleEntry(example = {}, manifest = {}) {
   };
 }
 
+function compareExamples(left, right) {
+  const leftOrder = EXAMPLE_ORDER_INDEX.get(left?.id);
+  const rightOrder = EXAMPLE_ORDER_INDEX.get(right?.id);
+
+  if (leftOrder !== undefined && rightOrder !== undefined && leftOrder !== rightOrder) {
+    return leftOrder - rightOrder;
+  }
+
+  if (leftOrder !== undefined) {
+    return -1;
+  }
+
+  if (rightOrder !== undefined) {
+    return 1;
+  }
+
+  return String(left?.title || "").localeCompare(String(right?.title || ""));
+}
+
 async function loadExamples() {
   const runtime = getRuntime();
   let result;
@@ -123,7 +181,7 @@ async function loadExamples() {
     })
   );
 
-  return examples.filter(Boolean).sort((left, right) => left.title.localeCompare(right.title));
+  return examples.filter(Boolean).sort(compareExamples);
 }
 
 globalThis.dashboardWelcome = function dashboardWelcome() {
@@ -133,6 +191,7 @@ globalThis.dashboardWelcome = function dashboardWelcome() {
     hidden: false,
     installingExampleId: "",
     ready: false,
+    resources: RESOURCE_LINKS,
     savingPreference: false,
 
     async init() {

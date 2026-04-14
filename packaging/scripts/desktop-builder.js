@@ -291,7 +291,7 @@ function printHelp(platformSpec) {
   console.log(`  node packaging/scripts/${platformSpec.entryScript} [options]`);
   console.log("");
   console.log("Options:");
-  console.log("  --app-version <tag> Desktop app version or tag, for example v0.22 or 0.22.0.");
+  console.log("  --app-version <tag> Desktop app version or tag, for example v0.22 or 0.22.");
   console.log("  --dir              Build an unpacked app directory instead of installers.");
   console.log("  --arch <list>      Arch list: x64, arm64, universal (macOS only).");
   console.log("  --x64              Shortcut for --arch x64.");

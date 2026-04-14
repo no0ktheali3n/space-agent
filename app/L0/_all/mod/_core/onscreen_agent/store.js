@@ -2532,6 +2532,18 @@ const model = {
     this.resolveStartupHint();
   },
 
+  handleUiBubbleActivate(event) {
+    if (event && event.isTrusted === false) {
+      return;
+    }
+
+    if (!this.isCompactMode || !this.isUiBubbleMounted || this.hiddenEdge) {
+      return;
+    }
+
+    this.showFullMode();
+  },
+
   clearUiBubbleEnterTimer() {
     this.uiBubbleEnterTimer = clearTimer(this.uiBubbleEnterTimer);
   },
@@ -4646,6 +4658,10 @@ const model = {
 
     if (this.chatRuntime?.transient) {
       this.chatRuntime.transient.clear();
+    }
+
+    if (this.chatRuntime?.skills?.clear) {
+      this.chatRuntime.skills.clear();
     }
 
     if (this.executionContext) {

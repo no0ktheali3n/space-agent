@@ -39,6 +39,11 @@ function collectLoadedSkills(result) {
   return loadedSkills;
 }
 
+function formatLoadedSkillResultText(skill) {
+  const responseText = typeof skill?.loadResponseText === "string" ? skill.loadResponseText.trim() : "";
+  return responseText || String(skill?.content || "").trim();
+}
+
 function findLineStart(content, index) {
   let lineStart = index;
 
@@ -965,11 +970,17 @@ function formatExecutionResultLines(result) {
   });
 
   loadedSkills.forEach((skill, index) => {
+    const loadedSkillResultText = formatLoadedSkillResultText(skill);
+
+    if (!loadedSkillResultText) {
+      return;
+    }
+
     if (index > 0) {
       lines.push("");
     }
 
-    lines.push(skill.content);
+    lines.push(loadedSkillResultText);
   });
 
   if (result?.result !== undefined && !isLoadedOnscreenSkill(result?.result)) {

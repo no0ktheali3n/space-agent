@@ -15,7 +15,7 @@ This module owns:
 - `view.html`: routed Time Travel page markup, repository-picker modal markup, route-owned header-control inject markup, and Alpine bindings
 - `store.js`: page-local writable-repository discovery, selected history-path state, paginated history loading, file filtering, selection preservation, timestamp formatting, diff loading, operation-preview loading, rollback calls, and revert calls
 - `time-travel.css`: page-local layout and visual styling
-- `ext/pages/time_travel.yaml`: dashboard page manifest for the `#/time_travel` route
+- `ext/panels/time_travel.yaml`: dashboard panel manifest for the `#/time_travel` route
 - `ext/html/_core/onscreen_menu/items/time-travel.html`: routed header-menu item adapter for the Time Travel route
 
 ## Local Contracts
@@ -25,6 +25,7 @@ This module owns:
 - history defaults to the authenticated user's L2 root via `space.api.gitHistoryList({ path: "~", limit, offset, fileFilter })`
 - the route injects its topbar controls into `[id="_core/onscreen_menu/bar_start"]` with `x-inject`; the header keeps a text-labeled Refresh button before the folder repository button there, both controls should rely on the shared shell chrome and stay borderless or background-free unless a state-specific override is necessary, and the repository button label is always the last folder name from the selected Git path, such as the username or group id
 - the routed page header itself keeps the `Time Travel` title on the left and the descriptive subtitle on the right at wider widths, then stacks them naturally on smaller screens
+- the routed page should stay flush with the shared route column and should not add extra horizontal page padding; the inner `.time-travel-shell` width clamp and panel chrome already provide the desktop inset
 - the page background stays plain; do not add decorative gradient or glow backdrops behind the shell, because the panels already carry the module chrome
 - the folder button opens a repository-picker dialog with the subtitle `Select Time Travel scope (git repository folder)` and calls `space.api.call("file_paths", { method: "POST", body: { patterns: ["**/.git/"], gitRepositories: true, access: "write" } })`
 - repository discovery must list writable local-history owner roots such as `L1/<group>/` and `L2/<user>/` without exposing `.git` metadata paths to the browser
@@ -53,4 +54,4 @@ This module owns:
 - keep this page as a frontend client for the server-owned Git history API; do not add direct file-system semantics here
 - keep errors visible in the page because `CUSTOMWARE_GIT_HISTORY` may be disabled at runtime
 - keep page-level title copy in the routed header itself, but move ephemeral route actions such as Refresh and repository selection into the shared onscreen-menu left header container through route-owned `x-inject` markup so those controls disappear automatically when the route unmounts
-- if the route, dashboard manifest, onscreen menu item, default `~` scope, or repository-picker contract changes, update `app/AGENTS.md` and the relevant docs under `_core/documentation/docs/`
+- if the route, dashboard panel manifest, onscreen menu item, default `~` scope, or repository-picker contract changes, update `app/AGENTS.md` and the relevant docs under `_core/documentation/docs/`

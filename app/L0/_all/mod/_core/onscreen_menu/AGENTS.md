@@ -15,7 +15,7 @@ This module owns:
 - `ext/html/_core/router/shell_start/menu.html`: thin shell-start extension that declares the viewport-fixed header bar, Home and menu buttons, the left and right header seams, the dropdown item seam, and the local auth exit action
 - `onscreen-menu.css`: menu-specific styling layered on the shared topbar primitives
 
-Feature-owned menu item extensions do not belong in this module. Current first-party item adapters live in `_core/agent`, `_core/time_travel`, `_core/file_explorer`, and `_core/admin`.
+Feature-owned menu item extensions do not belong in this module. Current first-party item adapters live in `_core/agent`, `_core/user`, `_core/time_travel`, `_core/file_explorer`, and `_core/admin`.
 
 ## Current Contract
 
@@ -24,6 +24,7 @@ Current behavior:
 - the menu mounts through `_core/router/shell_start`
 - the menu is pinned to the top of the viewport instead of joining document scroll, so routed content can scroll underneath it
 - the centered bar sits flush to the top of the viewport, stretches to the module-owned fixed shell width instead of shrinking to current content width, keeps only the bottom corners rounded, carries any safe-area top inset inside the shell surface itself, and should not reserve layout height in the routed page flow
+- the menu shell width clamp is module-owned through the router-page custom property `--onscreen-menu-shell-max-width`, currently `56rem` by default and `48rem` at `860px` and below; routed surfaces that must visually align to the overlay bar, such as `_core/dashboard`, should reuse that same property instead of introducing a second max-width
 - the router owns the fixed `--router-shell-start-clearance` inset used by standard routed pages, while this menu stays purely viewport-fixed chrome
 - the shell height should stay visually stable as the bar transitions between its max-width clamp and narrower viewport widths; keep one shared shell height instead of a wider-layout and narrower-layout split, and do not couple top or bottom padding to width-driven clamps
 - the shell should stay vertically compact and space-economic rather than hero-sized, and it should read as translucent glass: softened gradients, strong visible transparency, only a very light backdrop blur instead of a heavy frosted slab, no top edge border line, and only a restrained bottom edge line or reflection treatment
@@ -41,6 +42,7 @@ Current behavior:
 - route item adapters call the menu-provided `openRoute(routeHash)` helper with their owning route
 - `openRoute(routeHash)` keeps iframe-local routed navigation inside the `/admin` split-view iframe and otherwise prefers `window.top` with a current-window fallback
 - the Agent item is contributed by `_core/agent` with `data-order="100"`
+- the User item is contributed by `_core/user` with `data-order="150"`
 - the Files item is contributed by `_core/file_explorer` with `data-order="200"`
 - the Time Travel item is contributed by `_core/time_travel` with `data-order="300"`
 - the Admin item is contributed by `_core/admin` with `data-order="400"` and owns the `/admin?url=<current-path-search-hash>` handoff

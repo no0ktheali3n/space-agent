@@ -13,6 +13,11 @@ function isLoadedAdminSkill(value) {
   return Boolean(value?.__spaceAdminSkill) && typeof value?.content === "string" && typeof value?.path === "string";
 }
 
+function formatLoadedSkillResultText(skill) {
+  const responseText = typeof skill?.loadResponseText === "string" ? skill.loadResponseText.trim() : "";
+  return responseText || String(skill?.content || "").trim();
+}
+
 function findLineStart(content, index) {
   let lineStart = index;
 
@@ -552,10 +557,18 @@ function formatExecutionResultLines(result) {
   });
 
   if (isLoadedAdminSkill(result?.result)) {
-    lines.push(`result: loaded skill ${result.result.skillName || result.result.path}`);
-    lines.push(`skill path: ${result.result.path}`);
-    lines.push("skill content:");
-    lines.push(result.result.content);
+    const loadedSkillResultText = formatLoadedSkillResultText(result.result);
+
+    if (loadedSkillResultText) {
+      lines.push(`result: ${loadedSkillResultText}`);
+    }
+
+    if (!result.result.loadResponseText) {
+      lines.push(`skill path: ${result.result.path}`);
+      lines.push("skill content:");
+      lines.push(result.result.content);
+    }
+
     return lines;
   }
 

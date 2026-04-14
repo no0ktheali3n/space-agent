@@ -1,0 +1,20 @@
+created_at: 2026-04-14T00:00:00.000Z
+id: daily-news
+schema: spaces/v2
+updated_at: 2026-04-14T00:00:00.000Z
+title: Daily News
+description: Top headlines, a live news feed, and weather in one space.
+icon: newspaper
+icon_color: "#93c5ff"
+layout_order:
+  - news-feed
+  - top-news
+  - weather
+sizes:
+  news-feed: 5x9
+  top-news: 5x5
+  weather: 5x4
+positions:
+  news-feed: "-5,-5"
+  top-news: "0,-5"
+  weather: "0,0"

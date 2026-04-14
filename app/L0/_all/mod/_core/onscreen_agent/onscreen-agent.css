@@ -223,6 +223,16 @@
   will-change: opacity, transform;
 }
 
+.onscreen-agent-ui-bubble.is-clickable {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.onscreen-agent-ui-bubble.is-clickable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--onscreen-agent-inline-ring), var(--onscreen-agent-ui-bubble-shadow);
+}
+
 .onscreen-agent-ui-bubble.is-right {
   left: calc(100% + 10px);
 }

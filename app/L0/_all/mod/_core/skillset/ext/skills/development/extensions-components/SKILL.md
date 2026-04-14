@@ -38,7 +38,7 @@ Example:
 ## Extension Metadata Rules
 
 - Modules may also store lightweight metadata assets under other `ext/` folders when those files should follow the same readable-layer permissions and same-path override rules as HTML and JS extensions.
-- The current first-party example is `ext/pages/*.yaml`, which the dashboard page index discovers through `extensions_load`.
+- The current first-party example is `ext/panels/*.yaml`, which the dashboard panel index discovers through `extensions_load`.
 - Keep those metadata files display-oriented. They are extension-resolved module assets, not general writable storage.
 
 ## Component Loader Rules
@@ -55,7 +55,7 @@ Example:
 - Modules may export live skill-filter tags with hidden `<x-skill-context>` elements anywhere in mounted DOM.
 - Set one tag with `tag="..."` or multiple tags with `tags="a b c"`.
 - Alpine-bound attributes on `<x-skill-context>` are the normal way to keep tags synced with route or store state.
-- Shared skill discovery reads those tags directly from the current document each time it builds the catalog, the `just loaded` block, or an explicit skill load.
+- Shared skill discovery reads those tags directly from the current document each time it builds the catalog, auto-loaded skill context, or an explicit skill load.
 
 ## Layered Override Behavior
 

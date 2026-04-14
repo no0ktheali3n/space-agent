@@ -2,7 +2,7 @@
   height: 100svh;
   min-height: 0;
   box-sizing: border-box;
-  padding: clamp(20px, 3vw, 34px) clamp(18px, 5vw, 72px) clamp(30px, 5vw, 54px);
+  padding: clamp(20px, 3vw, 34px) 0 clamp(30px, 5vw, 54px);
   overflow: hidden;
   --time-travel-added: #78e3a0;
   --time-travel-added-bg: rgba(120, 227, 160, 0.1);
@@ -807,10 +807,6 @@
 }
 
 @media (max-width: 640px) {
-  .time-travel-page {
-    padding-inline: 14px;
-  }
-
   .time-travel-panel-heading,
   .time-travel-detail-header,
   .time-travel-diff-header {

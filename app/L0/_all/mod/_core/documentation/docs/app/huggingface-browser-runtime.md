@@ -20,7 +20,7 @@ The route is:
 #/huggingface
 ```
 
-This route is also advertised to the dashboard pages index through `_core/huggingface/ext/pages/huggingface.yaml`, using the title `Local LLM` and the shorthand manifest path `huggingface`.
+This route is also advertised to the dashboard panels index through `_core/huggingface/ext/panels/huggingface.yaml`, using the title `Local LLM` and the shorthand manifest path `huggingface`.
 
 The router resolves that to:
 

@@ -24,7 +24,8 @@ jobs:
     outputs:
       should_release: ${{ steps.release_gate.outputs.should_release }}
       release_tag: ${{ steps.release_version.outputs.release_tag }}
-      app_version: ${{ steps.release_version.outputs.app_version }}
+      build_version: ${{ steps.release_version.outputs.build_version }}
+      release_version: ${{ steps.release_version.outputs.release_version }}
       release_body: ${{ steps.release_notes.outputs.release_body }}
       previous_tag: ${{ steps.release_context.outputs.previous_tag }}
     steps:
@@ -40,7 +41,8 @@ jobs:
         run: |
           release_json="$(node packaging/scripts/release-version.js "$REQUESTED_RELEASE_TAG" --json)"
           echo "release_tag=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.releaseTag);' "$release_json")" >> "$GITHUB_OUTPUT"
-          echo "app_version=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.semver);' "$release_json")" >> "$GITHUB_OUTPUT"
+          echo "build_version=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.semver);' "$release_json")" >> "$GITHUB_OUTPUT"
+          echo "release_version=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.releaseVersion);' "$release_json")" >> "$GITHUB_OUTPUT"
 
       - id: release_gate
         shell: bash
@@ -223,7 +225,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          SPACE_APP_VERSION: ${{ needs.prepare.outputs.app_version }}
+          SPACE_APP_VERSION: ${{ needs.prepare.outputs.build_version }}
           SPACE_RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
           SKIP_SIGNING: ${{ runner.os == 'macOS' && env.HAS_MACOS_SIGNING_CERT != '1' && '1' || '' }}
         run: node packaging/scripts/${{ matrix.script }} --arch ${{ matrix.arch }}
@@ -304,7 +306,7 @@ jobs:
       - name: Upload release artifacts
         shell: bash
         env:
-          APP_VERSION: ${{ needs.prepare.outputs.app_version }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
         run: |
@@ -354,7 +356,7 @@ jobs:
                 ;;
             esac
 
-            asset_name="Space-Agent-$APP_VERSION-$platform-$arch.$extension"
+            asset_name="Space-Agent-$RELEASE_VERSION-$platform-$arch.$extension"
             upload_file="$upload_dir/$asset_name"
 
             if [ -e "$upload_file" ]; then

@@ -1,14 +1,20 @@
 .dashboard-view {
+  --dashboard-end-overscroll: 15em;
   min-height: 100%;
-  padding: clamp(20px, 3vw, 34px) 8em clamp(26px, 4vw, 40px);
+  padding: clamp(20px, 3vw, 34px) 0 clamp(26px, 4vw, 40px);
   box-sizing: border-box;
+}
+
+.dashboard-end-overscroll {
+  block-size: var(--dashboard-end-overscroll);
+  pointer-events: none;
 }
 
 .dashboard-shell {
   position: relative;
   display: grid;
   gap: clamp(1.1rem, 2.8vw, 1.75rem);
-  width: min(100%, 78rem);
+  width: min(100%, var(--onscreen-menu-shell-max-width, 56rem));
   margin: 0 auto;
 }
 

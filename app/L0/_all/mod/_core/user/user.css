@@ -1,0 +1,203 @@
+.user-page {
+  min-height: 100%;
+  padding: clamp(20px, 3vw, 34px) clamp(20px, 5vw, 56px) clamp(28px, 4vw, 42px);
+  box-sizing: border-box;
+  --user-page-compact-button-radius: 10px;
+  --user-page-compact-button-padding-y: 0.5rem;
+  --user-page-compact-button-padding-x: 0.85rem;
+  --user-page-compact-button-height: 34px;
+}
+
+.user-page-shell {
+  width: min(100%, 76rem);
+  margin: 0 auto;
+}
+
+.user-page-grid {
+  display: grid;
+  grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.user-page-card {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  align-content: start;
+  min-width: 0;
+}
+
+.user-page-card h1,
+.user-page-card h2 {
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.user-page-summary-card {
+  position: sticky;
+  top: calc(var(--router-shell-start-clearance, 0px) + 1rem);
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255, 199, 111, 0.16), transparent 34%),
+    radial-gradient(circle at 84% 18%, rgba(125, 227, 201, 0.14), transparent 36%),
+    linear-gradient(180deg, rgba(18, 31, 49, 0.96), rgba(13, 23, 39, 0.98));
+}
+
+.user-page-summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-self: start;
+  padding: 0.42rem 0.72rem;
+  border: 1px solid rgba(255, 208, 138, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 208, 138, 0.08);
+  color: #ffd08a;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.user-page-summary-head {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.user-page-summary-head h1 {
+  font-size: clamp(2rem, 4vw, 2.6rem);
+  line-height: 0.95;
+}
+
+.user-page-handle {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.98rem;
+}
+
+.user-page-summary-copy {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.user-page-chip-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.user-page-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.user-page-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.4rem 0.72rem;
+  border: 1px solid rgba(148, 188, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(12, 21, 36, 0.36);
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.user-page-chip.is-muted {
+  border-style: dashed;
+  color: var(--color-text-tertiary);
+}
+
+.user-page-settings-column {
+  display: grid;
+  gap: 1rem;
+}
+
+.user-page-section-card {
+  gap: 0.9rem;
+}
+
+.user-page-section-header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.user-page-section-header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.user-page-password-fields {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.user-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  justify-content: flex-start;
+}
+
+.user-page .primary-button.user-page-compact-button,
+.user-page .secondary-button.user-page-compact-button {
+  min-height: var(--user-page-compact-button-height);
+  padding: var(--user-page-compact-button-padding-y) var(--user-page-compact-button-padding-x);
+  border-width: 0;
+  border-radius: var(--user-page-compact-button-radius);
+}
+
+.user-page .primary-button.user-page-compact-button {
+  box-shadow: none;
+}
+
+.user-page .secondary-button.user-page-compact-button {
+  background: transparent;
+}
+
+.user-page .secondary-button.user-page-compact-button:hover:not(:disabled),
+.user-page .secondary-button.user-page-compact-button:focus-visible:not(:disabled) {
+  background: var(--space-option-hover-bg);
+}
+
+.user-page-inline-note,
+.user-page-password-match-note {
+  margin: 0;
+}
+
+.user-page-password-match-note.is-error {
+  color: #ff9eab;
+}
+
+.user-page-status {
+  min-height: 1.35rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+.user-page-status.is-success {
+  color: #9ce3b2;
+}
+
+.user-page-status.is-error {
+  color: #ff9eab;
+}
+
+@media (max-width: 720px) {
+  .user-page {
+    padding-inline: 1rem;
+  }
+}
+
+@media (max-width: 960px) {
+  .user-page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .user-page-summary-card {
+    position: static;
+  }
+}

@@ -63,11 +63,17 @@
                 'is-below': $store.onscreenAgent.isUiBubbleBelowHead,
                 'is-entering': $store.onscreenAgent.uiBubblePhase === 'entering',
                 'is-visible': $store.onscreenAgent.uiBubblePhase === 'visible',
-                'is-leaving': $store.onscreenAgent.uiBubblePhase === 'leaving'
+                'is-leaving': $store.onscreenAgent.uiBubblePhase === 'leaving',
+                'is-clickable': $store.onscreenAgent.isCompactMode
               }"
-              role="status"
+              :role="$store.onscreenAgent.isCompactMode ? 'button' : 'status'"
               aria-live="polite"
               aria-atomic="true"
+              :tabindex="$store.onscreenAgent.isCompactMode ? '0' : '-1'"
+              :title="$store.onscreenAgent.isCompactMode ? 'Open full chat' : null"
+              @click.prevent.stop="$store.onscreenAgent.handleUiBubbleActivate($event)"
+              @keydown.enter.prevent.stop="$store.onscreenAgent.handleUiBubbleActivate($event)"
+              @keydown.space.prevent.stop="$store.onscreenAgent.handleUiBubbleActivate($event)"
             >
               <div x-ref="uiBubbleContent"></div>
             </div>
@@ -157,7 +163,7 @@
                           class="onscreen-agent-set-api-key-button"
                           @click="$store.onscreenAgent.openSettingsDialog()"
                         >
-                          Set API key
+                          Set LLM API key
                         </button>
                       </div>
                     </template>

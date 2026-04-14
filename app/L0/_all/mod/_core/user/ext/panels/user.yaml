@@ -1,0 +1,5 @@
+name: User
+path: user
+description: Update your full name and sign-in password.
+icon: manage_accounts
+color: "#ffd08a"

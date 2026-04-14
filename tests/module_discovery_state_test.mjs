@@ -65,7 +65,7 @@ function seedDiscoveryState() {
       mtimeMs: 1,
       sizeBytes: 1
     },
-    "/app/L0/_all/mod/acme/demo/ext/pages/default.yaml": {
+    "/app/L0/_all/mod/acme/demo/ext/panels/default.yaml": {
       isDirectory: false,
       mtimeMs: 1,
       sizeBytes: 1
@@ -82,7 +82,7 @@ function seedDiscoveryState() {
       mtimeMs: 1,
       sizeBytes: 1
     },
-    "/app/L1/team/mod/acme/demo/ext/pages/team.yaml": {
+    "/app/L1/team/mod/acme/demo/ext/panels/team.yaml": {
       isDirectory: false,
       mtimeMs: 1,
       sizeBytes: 1
@@ -99,7 +99,7 @@ function seedDiscoveryState() {
       mtimeMs: 1,
       sizeBytes: 1
     },
-    "/app/L2/alice/mod/acme/demo/ext/pages/user.yaml": {
+    "/app/L2/alice/mod/acme/demo/ext/panels/user.yaml": {
       isDirectory: false,
       mtimeMs: 1,
       sizeBytes: 1
@@ -172,42 +172,42 @@ test("state-backed extension discovery respects layered overrides and caller vis
 
   const aliceExtensions = listResolvedExtensionRequestPaths({
     maxLayer: 2,
-    patterns: ["pages/*.yaml"],
+    patterns: ["panels/*.yaml"],
     runtimeParams,
     stateSystem,
     username: "alice"
   });
   assert.deepEqual(aliceExtensions, [
-    "/mod/acme/demo/ext/pages/default.yaml",
-    "/mod/acme/demo/ext/pages/team.yaml",
-    "/mod/acme/demo/ext/pages/user.yaml"
+    "/mod/acme/demo/ext/panels/default.yaml",
+    "/mod/acme/demo/ext/panels/team.yaml",
+    "/mod/acme/demo/ext/panels/user.yaml"
   ]);
 
   const bobExtensions = listResolvedExtensionRequestPaths({
     maxLayer: 2,
-    patterns: ["pages/*.yaml"],
+    patterns: ["panels/*.yaml"],
     runtimeParams,
     stateSystem,
     username: "bob"
   });
-  assert.deepEqual(bobExtensions, ["/mod/acme/demo/ext/pages/default.yaml"]);
+  assert.deepEqual(bobExtensions, ["/mod/acme/demo/ext/panels/default.yaml"]);
 
   const grouped = listResolvedExtensionRequestPathGroups({
     maxLayer: 2,
     requests: [
-      { key: "pages", patterns: ["pages/*.yaml"] },
-      { key: "teamOnly", patterns: ["pages/team.yaml"] }
+      { key: "panels", patterns: ["panels/*.yaml"] },
+      { key: "teamOnly", patterns: ["panels/team.yaml"] }
     ],
     runtimeParams,
     stateSystem,
     username: "alice"
   });
-  assert.deepEqual(grouped.pages, [
-    "/mod/acme/demo/ext/pages/default.yaml",
-    "/mod/acme/demo/ext/pages/team.yaml",
-    "/mod/acme/demo/ext/pages/user.yaml"
+  assert.deepEqual(grouped.panels, [
+    "/mod/acme/demo/ext/panels/default.yaml",
+    "/mod/acme/demo/ext/panels/team.yaml",
+    "/mod/acme/demo/ext/panels/user.yaml"
   ]);
-  assert.deepEqual(grouped.teamOnly, ["/mod/acme/demo/ext/pages/team.yaml"]);
+  assert.deepEqual(grouped.teamOnly, ["/mod/acme/demo/ext/panels/team.yaml"]);
 });
 
 test("state-backed module management lists self and admin cross-user visibility correctly", async () => {

@@ -95,9 +95,9 @@ Admin agent skills are discovered through the same shared browser-side skill hel
 Current rules:
 
 - `views/agent/skills.js` discovers top-level skill files through the shared `ext/skills` contract with an explicit `maxLayer=0` lookup
-- live page-owned `<x-skill-context>` tags still filter that catalog the same way they do for the onscreen agent; the admin shell exports `admin`, and individual skills may use `metadata.when.tags` or `metadata.just_loaded`
-- the admin agent prompt receives a compact catalog of those top-level skills plus a `just loaded` block for currently eligible `metadata.just_loaded` skills
-- the actual skill content is loaded on demand through `space.admin.loadSkill(name)`
+- live page-owned `<x-skill-context>` tags still filter that catalog the same way they do for the onscreen agent; the admin shell exports `admin`, and individual skills may use `metadata.when` and `metadata.loaded` as either `true` or `{ tags: [...] }` conditions plus `metadata.placement`
+- the admin agent prompt receives a compact catalog of those top-level skills plus the matching auto-loaded system or transient skill context for currently eligible `metadata.loaded` skills; auto-loaded skills do not enter history and fall back to `system` unless they explicitly set `transient`
+- the actual skill content is loaded on demand through `space.admin.loadSkill(name)`, with `history` placement entering ordinary execution-output history and `system` or `transient` placement registering runtime prompt context plus the short load-result text
 - keep skill folders stable and top-level if they should appear in the catalog
 - admin-owned skill files now live under `ext/skills/...` inside the owning module instead of a private `skills/` root
 

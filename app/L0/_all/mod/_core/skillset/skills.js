@@ -3,10 +3,17 @@ export const ALL_SKILL_FILE_PATTERN = "mod/*/*/ext/skills/**/SKILL.md";
 export const SKILL_FILE_NAME = "SKILL.md";
 export const SKILLS_ROOT_SEGMENT = "/ext/skills/";
 export const SKILL_CONTEXT_SELECTOR = "x-skill-context";
+export const SKILL_PLACEMENT = Object.freeze({
+  HISTORY: "history",
+  SYSTEM: "system",
+  TRANSIENT: "transient"
+});
 
 const BOOLEAN_FALSE_VALUES = new Set(["", "0", "false", "no", "off"]);
 const BOOLEAN_TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
 const SKILL_TAG_PATTERN = /^[A-Za-z0-9._:/-]+$/u;
+const VALID_SKILL_PLACEMENTS = new Set(Object.values(SKILL_PLACEMENT));
+const DEFAULT_SKILL_HISTORY_KIND = "skill";
 
 function readMetadataBooleanValue(value) {
   if (value === true || value === 1) {
@@ -120,10 +127,31 @@ function normalizeSkillMetadata(metadata) {
   return { ...metadata };
 }
 
+export function normalizeSkillPlacement(placement) {
+  const normalizedPlacement = typeof placement === "string" ? placement.trim().toLowerCase() : "";
+  return VALID_SKILL_PLACEMENTS.has(normalizedPlacement)
+    ? normalizedPlacement
+    : SKILL_PLACEMENT.HISTORY;
+}
+
+function resolveSkillPlacement(placement, options = {}) {
+  const normalizedPlacement = normalizeSkillPlacement(placement);
+
+  if (options.autoLoaded === true && normalizedPlacement === SKILL_PLACEMENT.HISTORY) {
+    return SKILL_PLACEMENT.SYSTEM;
+  }
+
+  return normalizedPlacement;
+}
+
 function normalizeSkillCondition(condition) {
   const booleanValue = readMetadataBooleanValue(condition);
 
-  if (booleanValue !== null || condition == null) {
+  if (booleanValue === true) {
+    return true;
+  }
+
+  if (booleanValue === false || condition == null) {
     return null;
   }
 
@@ -140,7 +168,7 @@ function normalizeSkillCondition(condition) {
   return tags.length ? { tags } : null;
 }
 
-function normalizeJustLoadedConfig(config) {
+function normalizeSkillLoadedConfig(config) {
   const booleanValue = readMetadataBooleanValue(config);
 
   if (booleanValue === true) {
@@ -161,7 +189,7 @@ function createContextTagSet(contextTags) {
 }
 
 function matchesSkillCondition(condition, contextTagSet) {
-  if (!condition) {
+  if (condition === true || !condition) {
     return true;
   }
 
@@ -172,16 +200,16 @@ function isSkillEligibleForContext(skill, contextTagSet) {
   return matchesSkillCondition(skill.when, contextTagSet);
 }
 
-function isSkillJustLoadedForContext(skill, contextTagSet) {
+function isSkillAutoLoadedForContext(skill, contextTagSet) {
   if (!isSkillEligibleForContext(skill, contextTagSet)) {
     return false;
   }
 
-  if (skill.justLoaded === true) {
+  if (skill.loaded === true) {
     return true;
   }
 
-  return matchesSkillCondition(skill.justLoaded, contextTagSet);
+  return matchesSkillCondition(skill.loaded, contextTagSet);
 }
 
 export function collectSkillContextTags(root = globalThis.document) {
@@ -238,6 +266,217 @@ export function parseDiscoveredSkillFile(filePath) {
   } catch {
     return null;
   }
+}
+
+function normalizePromptSkill(skill) {
+  if (!skill || typeof skill !== "object") {
+    return null;
+  }
+
+  const path = typeof skill.path === "string" ? skill.path.trim() : "";
+  const body = typeof skill.body === "string" ? skill.body.trim() : "";
+  const content = typeof skill.content === "string" ? skill.content : body;
+
+  if (!path || !body) {
+    return null;
+  }
+
+  return {
+    ...skill,
+    body,
+    content,
+    filePath: typeof skill.filePath === "string" ? skill.filePath : "",
+    modulePath: typeof skill.modulePath === "string" ? skill.modulePath : "",
+    path,
+    placement: normalizeSkillPlacement(skill.placement)
+  };
+}
+
+function clonePromptSkill(skill) {
+  const normalizedSkill = normalizePromptSkill(skill);
+  return normalizedSkill ? { ...normalizedSkill } : null;
+}
+
+function buildPromptSkillIdentity(skill) {
+  const normalizedSkill = normalizePromptSkill(skill);
+
+  if (!normalizedSkill) {
+    return "";
+  }
+
+  return `${normalizedSkill.filePath}|${normalizedSkill.path}`;
+}
+
+function comparePromptSkills(left, right) {
+  const pathCompare = left.path.localeCompare(right.path);
+
+  if (pathCompare !== 0) {
+    return pathCompare;
+  }
+
+  const moduleCompare = left.modulePath.localeCompare(right.modulePath);
+
+  if (moduleCompare !== 0) {
+    return moduleCompare;
+  }
+
+  return left.filePath.localeCompare(right.filePath);
+}
+
+function buildPromptSkillList(skills) {
+  const promptSkillsByIdentity = new Map();
+
+  (Array.isArray(skills) ? skills : []).forEach((skill) => {
+    const normalizedSkill = normalizePromptSkill(skill);
+
+    if (!normalizedSkill) {
+      return;
+    }
+
+    promptSkillsByIdentity.set(buildPromptSkillIdentity(normalizedSkill), normalizedSkill);
+  });
+
+  return [...promptSkillsByIdentity.values()].sort(comparePromptSkills);
+}
+
+function filterPromptSkillsByPlacement(skills, placement) {
+  const normalizedPlacement = normalizeSkillPlacement(placement);
+  return buildPromptSkillList(skills).filter((skill) => skill.placement === normalizedPlacement);
+}
+
+function createSkillPromptRuntime() {
+  const loadedSkillsByIdentity = new Map();
+
+  return {
+    clear() {
+      loadedSkillsByIdentity.clear();
+    },
+    list(placement) {
+      const skills = [...loadedSkillsByIdentity.values()];
+      return placement ? filterPromptSkillsByPlacement(skills, placement) : buildPromptSkillList(skills);
+    },
+    remember(skill) {
+      const normalizedSkill = normalizePromptSkill(skill);
+
+      if (!normalizedSkill) {
+        return null;
+      }
+
+      const identity = buildPromptSkillIdentity(normalizedSkill);
+
+      if (!identity) {
+        return null;
+      }
+
+      if (normalizedSkill.placement === SKILL_PLACEMENT.HISTORY) {
+        loadedSkillsByIdentity.delete(identity);
+        return clonePromptSkill(normalizedSkill);
+      }
+
+      loadedSkillsByIdentity.set(identity, normalizedSkill);
+      return clonePromptSkill(normalizedSkill);
+    }
+  };
+}
+
+function getSkillPromptRuntimeTarget(targetRuntime = globalThis.space, options = {}) {
+  if (!targetRuntime || typeof targetRuntime !== "object") {
+    return null;
+  }
+
+  const create = options.create === true;
+  const existingChat =
+    targetRuntime.chat && typeof targetRuntime.chat === "object"
+      ? targetRuntime.chat
+      : targetRuntime.currentChat && typeof targetRuntime.currentChat === "object"
+        ? targetRuntime.currentChat
+        : null;
+
+  if (!existingChat && !create) {
+    return null;
+  }
+
+  const chatRuntime = existingChat || {};
+
+  if (create) {
+    targetRuntime.chat = chatRuntime;
+    delete targetRuntime.currentChat;
+  }
+
+  if ((!chatRuntime.skills || typeof chatRuntime.skills !== "object") && create) {
+    chatRuntime.skills = createSkillPromptRuntime();
+  }
+
+  return chatRuntime.skills && typeof chatRuntime.skills === "object" ? chatRuntime.skills : null;
+}
+
+export function ensureSkillPromptRuntime(targetRuntime = globalThis.space) {
+  return getSkillPromptRuntimeTarget(targetRuntime, {
+    create: true
+  });
+}
+
+export function registerLoadedSkill(skill, options = {}) {
+  const runtime = ensureSkillPromptRuntime(options.runtime);
+  return runtime?.remember?.(skill) || null;
+}
+
+export function listRuntimeLoadedSkills(options = {}) {
+  const runtime = getSkillPromptRuntimeTarget(options.runtime);
+  return runtime?.list?.(options.placement) || [];
+}
+
+export function getSkillLoadResponseText(skill) {
+  const placement = normalizeSkillPlacement(skill?.placement);
+
+  if (placement === SKILL_PLACEMENT.SYSTEM) {
+    return "skill loaded to system message";
+  }
+
+  if (placement === SKILL_PLACEMENT.TRANSIENT) {
+    return "skill loaded to transient area";
+  }
+
+  return "";
+}
+
+function formatSkillPromptBlock(skill) {
+  const normalizedSkill = normalizePromptSkill(skill);
+  return normalizedSkill ? `id: ${normalizedSkill.path}\n${normalizedSkill.body}` : "";
+}
+
+function createSkillHistoryMessage(skill, kind = DEFAULT_SKILL_HISTORY_KIND) {
+  const content = formatSkillPromptBlock(skill);
+
+  if (!content) {
+    return null;
+  }
+
+  return {
+    content,
+    kind,
+    role: "user"
+  };
+}
+
+function createSkillTransientSection(skill, options = {}) {
+  const normalizedSkill = normalizePromptSkill(skill);
+
+  if (!normalizedSkill) {
+    return null;
+  }
+
+  const headingPrefix = typeof options.headingPrefix === "string" ? options.headingPrefix.trim() : "Skill";
+  const keyPrefix = typeof options.keyPrefix === "string" ? options.keyPrefix.trim() : "skill";
+  const orderBase = Number.isFinite(options.orderBase) ? Number(options.orderBase) : 0;
+  const orderOffset = Number.isFinite(options.orderOffset) ? Number(options.orderOffset) : 0;
+
+  return {
+    content: formatSkillPromptBlock(normalizedSkill),
+    heading: `${headingPrefix} ${normalizedSkill.path}`.trim(),
+    key: `${keyPrefix}:${normalizedSkill.path}`,
+    order: orderBase + orderOffset
+  };
 }
 
 function buildSkillListLines(skills) {
@@ -344,17 +583,21 @@ async function readSkillFiles(skillFiles) {
         ? parsedDocument.frontmatter
         : {};
     const metadata = normalizeSkillMetadata(frontmatter.metadata);
+    const loaded = normalizeSkillLoadedConfig(metadata.loaded);
 
     return {
       body: String(parsedDocument?.body || content),
       content,
       description: String(frontmatter.description || "").trim(),
       filePath: skillFile.filePath,
-      justLoaded: normalizeJustLoadedConfig(metadata.just_loaded),
+      loaded,
       metadata,
       modulePath: skillFile.modulePath,
       name: String(frontmatter.name || skillFile.path).trim() || skillFile.path,
       path: skillFile.path,
+      placement: resolveSkillPlacement(metadata.placement, {
+        autoLoaded: loaded !== null
+      }),
       when: normalizeSkillCondition(metadata.when)
     };
   });
@@ -395,7 +638,7 @@ function buildSkillIndex(discoveredSkills, contextTags = []) {
   return {
     conflicts,
     contextTags: [...contextTagSet].sort(),
-    justLoadedSkills: skills.filter((skill) => isSkillJustLoadedForContext(skill, contextTagSet)),
+    autoLoadedSkills: skills.filter((skill) => isSkillAutoLoadedForContext(skill, contextTagSet)),
     skills
   };
 }
@@ -450,7 +693,7 @@ export function buildSkillCatalogPromptSection(index, options = {}) {
 
   return [
     "skills",
-    "load on demand unless just loaded",
+    "load on demand unless auto-loaded",
     "id = ext/skills path without /SKILL.md",
     `load: ${options.loadCommand || 'await space.skills.load("id")'}`,
     skills.length ? "skills id|name|description↓" : "no loadable skills",
@@ -461,17 +704,82 @@ export function buildSkillCatalogPromptSection(index, options = {}) {
     .join("\n");
 }
 
-export function buildJustLoadedSkillsPromptSection(index) {
-  const justLoadedSkills = Array.isArray(index?.justLoadedSkills) ? index.justLoadedSkills : [];
+export function buildAutoLoadedSkillsPromptSection(index) {
+  const systemSkills = filterPromptSkillsByPlacement(index?.autoLoadedSkills, SKILL_PLACEMENT.SYSTEM);
 
-  if (!justLoadedSkills.length) {
+  if (!systemSkills.length) {
     return "";
   }
 
   return [
-    "just loaded",
-    ...justLoadedSkills.map((skill) => `id: ${skill.path}\n${skill.body}`)
+    "auto loaded",
+    ...systemSkills.map((skill) => formatSkillPromptBlock(skill))
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+export function buildAutoLoadedSkillsHistoryMessages(index, options = {}) {
+  return filterPromptSkillsByPlacement(index?.autoLoadedSkills, SKILL_PLACEMENT.HISTORY)
+    .map((skill) => createSkillHistoryMessage(skill, options.kind))
+    .filter(Boolean);
+}
+
+export function buildAutoLoadedSkillsTransientSections(index, options = {}) {
+  return filterPromptSkillsByPlacement(index?.autoLoadedSkills, SKILL_PLACEMENT.TRANSIENT)
+    .map((skill, indexOffset) =>
+      createSkillTransientSection(skill, {
+        ...options,
+        headingPrefix:
+          typeof options.headingPrefix === "string" && options.headingPrefix.trim()
+            ? options.headingPrefix
+            : "Skill",
+        keyPrefix:
+          typeof options.keyPrefix === "string" && options.keyPrefix.trim()
+            ? options.keyPrefix
+            : "skill:auto",
+        orderOffset: indexOffset
+      })
+    )
+    .filter(Boolean);
+}
+
+export function buildRuntimeLoadedSkillsPromptSection(options = {}) {
+  const systemSkills = listRuntimeLoadedSkills({
+    placement: SKILL_PLACEMENT.SYSTEM,
+    runtime: options.runtime
+  });
+
+  if (!systemSkills.length) {
+    return "";
+  }
+
+  return [
+    typeof options.heading === "string" && options.heading.trim() ? options.heading.trim() : "loaded skills",
+    ...systemSkills.map((skill) => formatSkillPromptBlock(skill))
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export function buildRuntimeLoadedSkillsTransientSections(options = {}) {
+  return listRuntimeLoadedSkills({
+    placement: SKILL_PLACEMENT.TRANSIENT,
+    runtime: options.runtime
+  })
+    .map((skill, indexOffset) =>
+      createSkillTransientSection(skill, {
+        ...options,
+        headingPrefix:
+          typeof options.headingPrefix === "string" && options.headingPrefix.trim()
+            ? options.headingPrefix
+            : "Loaded Skill",
+        keyPrefix:
+          typeof options.keyPrefix === "string" && options.keyPrefix.trim()
+            ? options.keyPrefix
+            : "skill:loaded",
+        orderOffset: indexOffset
+      })
+    )
+    .filter(Boolean);
 }

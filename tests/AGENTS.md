@@ -40,6 +40,7 @@ This scope owns:
 - `file_api_request_context_test.mjs`: live HTTP regression coverage for file endpoints that depend on router-supplied `headers` and `requestUrl` request-context fields
 - `github_auth_test.mjs`: focused coverage for GitHub token resolution via `SPACE_GITHUB_TOKEN`, no-auth behavior when the token is absent, and supervisor Git command auth-header injection
 - `module_discovery_state_test.mjs`: focused coverage for state-backed module inheritance, extension lookup, and module-management visibility across firmware `L0`, group `L1`, self `L2`, and admin cross-user `L2` access
+- `password_change_test.mjs`: live HTTP coverage for authenticated self-service password rotation, including current-password validation, session clearing, old-password rejection, replacement-password login, and single-user-mode rejection
 - `server_cluster_test.mjs`: clustered-runtime smoke and stress coverage for cross-worker file-write visibility, version fencing, guest creation, login challenge, login completion, cookie validation, and 8-worker index-parity checks through the temporary debug path-index endpoint
 - `set_command_test.mjs`: focused coverage for `space set` `KEY=VALUE` parsing, rejection of non-assignment arguments, and ordered multi-assignment application
 - `supervise_command_test.mjs`: focused coverage for `supervise` argument partitioning, opaque child `space serve` arg forwarding, child `HOST` and `PORT` rewriting, `CUSTOMWARE_PATH` resolution, and the default project-root `supervisor/` state directory

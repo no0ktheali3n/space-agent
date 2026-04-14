@@ -112,6 +112,7 @@ async function normalizeExampleDefinition(rawExample, index) {
       ? rawExample
       : {};
   const text = collapseWhitespace(normalizedExample.text ?? normalizedExample.label ?? normalizedExample.prompt);
+  const prompt = collapseWhitespace(normalizedExample.prompt ?? normalizedExample.text ?? normalizedExample.label);
   const code = String(normalizedExample.code ?? normalizedExample.javascript ?? "").trim();
   const icon = normalizeExampleIcon(normalizedExample.icon);
   const color = normalizeExampleColor(normalizedExample.color ?? normalizedExample.iconColor ?? normalizedExample.icon_color);
@@ -131,6 +132,7 @@ async function normalizeExampleDefinition(rawExample, index) {
     id: normalizeExampleId(normalizedExample.id ?? text, index),
     icon,
     kind,
+    prompt,
     text
   });
 

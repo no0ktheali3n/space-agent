@@ -32,7 +32,7 @@ Important frontend-facing endpoint families are:
 - app files: `file_list`, `file_paths`, `file_read`, `file_write`, `file_delete`, `file_copy`, `file_move`, `file_info`, `folder_download`
 - local history: `git_history_list`, `git_history_diff`, `git_history_preview`, `git_history_rollback`, `git_history_revert`
 - modules: `module_list`, `module_info`, `module_install`, `module_remove`
-- runtime and identity: `extensions_load`, `password_generate`, `user_self_info`
+- runtime and identity: `extensions_load`, `password_generate`, `password_change`, `user_self_info`
 
 These endpoints are thin wrappers over shared helpers in `server/lib/customware/` and `server/lib/auth/`.
 
@@ -44,6 +44,8 @@ These endpoints are thin wrappers over shared helpers in `server/lib/customware/
 
 `user_self_info` is the frontend-facing identity snapshot. Frontend callers derive writable app roots from `username`, `managedGroups`, and `_admin` membership in `groups` without authorizing backend edits.
 
+`password_change` is the authenticated self-service password-rotation endpoint for the current user. Frontend code should call it instead of writing `~/meta/password.json` directly, because the backend validates the current password, seals the replacement verifier, clears sessions, and clears the current cookie.
+
 ## Module And Extension Resolution
 
 - `/mod/...` resolution goes through the layered customware model.
@@ -51,7 +53,7 @@ These endpoints are thin wrappers over shared helpers in `server/lib/customware/
 - `/admin` effectively clamps module and extension resolution to `L0`.
 - Frontend HTML extensions resolve through `ext/html/...`.
 - Frontend JS hooks resolve through `ext/js/...`.
-- Frontend modules may also enumerate other extension-owned assets such as `ext/pages/*.yaml` through `extensions_load` when they need the same permission-aware layered override behavior.
+- Frontend modules may also enumerate other extension-owned assets such as `ext/panels/*.yaml` through `extensions_load` when they need the same permission-aware layered override behavior.
 
 ## Auth And User Storage
 
@@ -59,6 +61,7 @@ These endpoints are thin wrappers over shared helpers in `server/lib/customware/
 - User metadata lives at `L2/<username>/user.yaml`.
 - `L2/<username>/meta/password.json` stores a server-sealed SCRAM verifier envelope, not a self-sufficient plaintext verifier.
 - `L2/<username>/meta/logins.json` stores backend-keyed session verifiers plus signed session metadata.
+- Authenticated self-service password changes still stay backend-owned through `/api/password_change`; browser code may edit `L2/<username>/user.yaml` directly, but not the password verifier file.
 - User-owned modules live under `L2/<username>/mod/`.
 - Backend auth keys come from shared environment injection through `SPACE_AUTH_PASSWORD_SEAL_KEY` and `SPACE_AUTH_SESSION_HMAC_KEY` for multi-instance deployments, or from the local fallback `server/data/auth_keys.json` during single-instance development.
 

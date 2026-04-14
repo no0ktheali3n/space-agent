@@ -30,7 +30,7 @@ Important shell facts:
 - `/login` and `/enter` are special recovery-safe shells that do not depend on authenticated `/mod/...` assets
 - same-origin `/` and `/admin` URLs opened from framework-backed pages through normal `target="_blank"` link clicks or `window.open(..., "_blank")` receive the current tab's `/enter` access marker before navigation; manual browser opens are left to the `/enter` guard
 - authenticated framework-backed shells load `_core/framework/css/index.css`, which sets an app-wide border-box sizing baseline so reusable module cards, rows, and form controls do not overflow merely because they combine `width: 100%` with padding or borders
-- the authenticated `/` shell inherits router-owned viewport clearances: a fixed top inset for shell chrome plus a shared `15em` bottom overscroll allowance so normal routed pages can scroll slightly past their visual end when the chat overlay would otherwise cover bottom content
+- the authenticated `/` shell inherits a router-owned fixed top inset for shell chrome, while routed pages own any extra route-end breathing room they need under the chat overlay; `_core/dashboard` currently keeps a local `15em` bottom overscroll budget for that purpose
 - first-party framework, shell, skill-helper, and bundled demo assets required for normal app use must be local `/mod/...` files, server page assets, or inline code rather than CDN scripts, styles, fonts, images, or other remote runtime assets
 
 ## Layer Model
@@ -58,6 +58,7 @@ Permission summary:
 - users write `L1/<group>/...` only if they manage that group
 - `_admin` members may write any `L1` and `L2` path
 - first-party frontend modules may persist small client-owned lifecycle state under the current user's `~/meta/` folder when that state is not backend auth material; `_core/login_hooks` uses `~/meta/login_hooks.json` to remember that first-login hooks already ran, and `_core/spaces` currently consumes that seam to copy or reuse the module-owned `Big Bang` onboarding space before the root app shell would default to dashboard
+- first-party frontend modules may edit browser-owned user metadata files when the file itself is part of the layered app model; `_core/user` writes `~/user.yaml` directly for `full_name`, while password rotation still goes through the backend-owned `/api/password_change` endpoint instead of writing `~/meta/password.json`
 - first-party frontend modules may also edit small user-authored prompt or settings files under `~/conf/` when that data is intentionally browser-owned; `_core/agent` edits `~/conf/personality.system.include.md` as raw prompt-include text for the current user
 - `_core/file_explorer` is the first-party routed Files page and reusable component for normal authenticated app-file reads and writes; the server remains authoritative for permissions
 

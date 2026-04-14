@@ -35,11 +35,14 @@ The admin agent now uses the same shared browser-side skill helper as the onscre
 - top-level catalog entries come from readable `mod/*/*/ext/skills/*/SKILL.md`
 - the shared helper reads the current document's `<x-skill-context>` tags before deciding which skills are eligible
 - the admin shell exports `admin`, so admin-owned skills may require `metadata.when.tags: [admin]`
-- `metadata.just_loaded` works here too, so the admin prompt can append a `just loaded` block without hardcoding specific skill ids
+- `metadata.when` and `metadata.loaded` both accept either `true` or a `{ tags: [...] }` condition, so admin skills use the same live page-tag matcher for catalog visibility and automatic prompt inclusion
+- `metadata.loaded` works here too, so the admin prompt can append the matching auto-loaded skill context without hardcoding specific skill ids; those auto-loaded skills may resolve only to `system` or `transient`, with `system` as the fallback
 - `space.admin.loadSkill("path")` loads a matching `ext/skills/.../SKILL.md` file on demand
 - admin skill discovery is still firmware-clamped because `views/agent/skills.js` resolves those skill paths with explicit `maxLayer=0`
 
 That means admin execution can still use normal app-file APIs across L0, L1, and L2 for operational work, while the prompt-facing skill catalog and skill bodies remain uninfluenced by writable customware layers.
+
+Manual loads follow the same placement rule as the onscreen agent: `history` placement enters normal execution-output history, while `system` and `transient` placement register the skill in runtime prompt context and report the short load result text instead of pasting the full body into history.
 
 ## Provider Model
 

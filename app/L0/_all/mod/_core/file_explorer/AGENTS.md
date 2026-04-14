@@ -16,7 +16,7 @@ This module owns:
 - `view.html`: routed `#/file_explorer` page that embeds `component.html`
 - `store.js`: navigation, selection, clipboard, dialogs, path memory, and file API orchestration
 - `file-explorer.css`: component and routed-page layout on top of shared visual primitives
-- `ext/pages/file_explorer.yaml`: dashboard page manifest for the routed Files page
+- `ext/panels/file_explorer.yaml`: dashboard panel manifest for the routed Files page
 - `ext/html/_core/onscreen_menu/items/file-explorer.html`: routed header-menu item adapter for the Files route
 
 ## Runtime And API Contract
@@ -58,6 +58,7 @@ Current editor rule:
 - file and folder download actions, with folders routed through the server ZIP endpoint
 - inline reporting for not-found and permission errors
 - routed-page and list-row sizing clamps the explorer to its route column with `min-width: 0`, `max-width: 100%`, `overflow: hidden`, and border-box sizing on the internal card, list, and rows so padding or borders cannot create horizontal scroll
+- the routed `view.html` wrapper should stay flush with the shared route column and should not add extra horizontal padding around the reusable explorer card
 
 ## Development Guidance
 

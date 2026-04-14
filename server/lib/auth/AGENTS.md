@@ -12,7 +12,7 @@ Documentation is top priority for this subtree. After any change under `server/l
 
 Current files:
 
-- `service.js`: login challenge creation, login completion, session-cookie helpers, session revocation, and request-user resolution
+- `service.js`: login challenge creation, login completion, self-service password change, session-cookie helpers, session revocation, and request-user resolution
 - `keys_manage.js`: backend-only auth-key loading from shared env injection or local `server/data/auth_keys.json`
 - `passwords.js`: verifier and proof helpers
 - `user_files.js`: canonical `L2/<username>/user.yaml` and `meta/` read or write helpers
@@ -51,6 +51,7 @@ Current password rules:
 
 - `meta/password.json` stores a server-sealed SCRAM verifier envelope, not plaintext `stored_key` and `server_key` fields
 - only backend helpers that hold the auth seal key may generate accepted password records
+- authenticated self-service password changes validate the current password in `service.js`, then reuse the shared password-reset primitive so the sealed verifier and cleared sessions are published through the normal auth mutation path
 - the auth service rewrites legacy plaintext verifier files into sealed records during startup before the server begins handling requests; in clustered runtime this initialization stays on the primary so workers do not all rescan `L2`
 - `createAuthService(...)` requires the shared state system; the auth runtime should not invent a second in-memory challenge path
 
@@ -74,7 +75,7 @@ Rules:
 - user creation initializes the user directory, `meta/`, and `mod/`
 - user creation must publish the concrete auth files it creates, not only the user directory root, so incremental user-index rebuilds see new accounts immediately
 - CLI-owned group assignment for `node space user create --groups ...` belongs in `commands/user.js` and `server/lib/customware/group_files.js`, not in `user_manage.js`; `user_manage.js` should stay focused on user storage and auth files
-- password resets rewrite the sealed verifier and clear active sessions
+- password resets rewrite the sealed verifier and clear active sessions; authenticated self-service password changes should validate the current password in `service.js` before delegating to that same shared rewrite path
 - guest users are created under randomized `guest_` usernames
 - guest deletion removes the whole `L2/<username>/` root and publishes that logical path through the shared mutation path so replicated user and session indexes drop the guest immediately
 - periodic guest cleanup policy belongs in `server/jobs/`; `user_manage.js` owns the deletion primitive, not the schedule or file-index policy

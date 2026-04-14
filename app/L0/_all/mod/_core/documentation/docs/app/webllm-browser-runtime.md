@@ -18,7 +18,7 @@ The routed test page lives at:
 #/webllm
 ```
 
-This route is not advertised to the dashboard pages index. The Hugging Face-backed `#/huggingface` route is the only dashboard-listed Local LLM page.
+This route is not advertised to the dashboard panels index. The Hugging Face-backed `#/huggingface` route is the only dashboard-listed Local LLM page.
 
 This module is intentionally a manual browser-only test harness:
 

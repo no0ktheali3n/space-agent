@@ -26,6 +26,7 @@ function parseReleaseVersion(value) {
     major,
     minor,
     patch,
+    releaseVersion: patch === 0 ? `${major}.${minor}` : `${major}.${minor}.${patch}`,
     semver: `${major}.${minor}.${patch}`
   };
 }
@@ -133,7 +134,7 @@ function runCli() {
     return;
   }
 
-  console.log(parsedReleaseVersion.semver);
+  console.log(parsedReleaseVersion.releaseVersion);
 }
 
 if (require.main === module) {

@@ -21,6 +21,10 @@ import {
   sizeToToken
 } from "/mod/_core/spaces/widget-sdk-core.js";
 import {
+  buildSpaceThumbnailUrlFromPath,
+  resolveListedSpaceThumbnailPath
+} from "/mod/_core/spaces/thumbnail_experiment/index.js";
+import {
   getSpaceDisplayIcon,
   getSpaceDisplayIconColor,
   getSpaceDisplayTitle,
@@ -303,18 +307,21 @@ function formatSpaceUpdatedAtLabel(value) {
   return [dateText, timeText].filter(Boolean).join(" ");
 }
 
-function formatSpaceListEntry(spaceRecord, widgetCount = spaceRecord.widgetIds.length, widgetNames = []) {
+function formatSpaceListEntry(spaceRecord, widgetCount = spaceRecord.widgetIds.length, widgetNames = [], thumbnailPath = "") {
   const normalizedWidgetNames = uniqueList(
     (Array.isArray(widgetNames) ? widgetNames : [])
       .map((value) => String(value || "").trim())
       .filter(Boolean)
   );
+  const normalizedThumbnailPath = String(thumbnailPath || "").trim();
 
   return {
     ...spaceRecord,
     displayIcon: getSpaceDisplayIcon(spaceRecord),
     displayIconColor: getSpaceDisplayIconColor(spaceRecord),
     displayTitle: getSpaceDisplayTitle(spaceRecord),
+    thumbnailPath: normalizedThumbnailPath,
+    thumbnailUrl: buildSpaceThumbnailUrlFromPath(normalizedThumbnailPath, spaceRecord.updatedAt),
     updatedAtLabel: formatSpaceUpdatedAtLabel(spaceRecord.updatedAt),
     hiddenWidgetCount: Math.max(0, normalizedWidgetNames.length - 4),
     widgetCount,
@@ -1615,6 +1622,7 @@ export async function listSpaces() {
       const parsedContent = runtime.utils.yaml.parse(String(file?.content || ""));
       const normalizedSpace = normalizeManifest(parsedContent, fallbackId);
       const widgetNameMap = widgetNamesBySpaceId[normalizedSpace.id] || {};
+      const thumbnailPath = resolveListedSpaceThumbnailPath(normalizedSpace.id, matchedPaths);
       const orderedWidgetNames = uniqueList([
         ...normalizedSpace.widgetIds
           .map((widgetId) => widgetNameMap[widgetId] || formatTitleFromId(widgetId))
@@ -1627,7 +1635,8 @@ export async function listSpaces() {
       return formatSpaceListEntry(
         normalizedSpace,
         widgetCounts[normalizedSpace.id]?.size || normalizedSpace.widgetIds.length,
-        orderedWidgetNames
+        orderedWidgetNames,
+        thumbnailPath
       );
     })
     .sort((left, right) => {

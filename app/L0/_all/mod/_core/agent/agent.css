@@ -1,6 +1,6 @@
 .agent-page {
   min-height: 100%;
-  padding: clamp(20px, 3vw, 34px) clamp(20px, 5vw, 56px) clamp(28px, 4vw, 42px);
+  padding: clamp(20px, 3vw, 34px) 0 clamp(28px, 4vw, 42px);
   box-sizing: border-box;
   --agent-page-compact-button-radius: 10px;
   --agent-page-compact-button-padding-y: 0.5rem;
@@ -225,12 +225,6 @@
 @media (prefers-reduced-motion: reduce) {
   .agent-page-avatar-image {
     animation: none;
-  }
-}
-
-@media (max-width: 720px) {
-  .agent-page {
-    padding-inline: 1rem;
   }
 }
 

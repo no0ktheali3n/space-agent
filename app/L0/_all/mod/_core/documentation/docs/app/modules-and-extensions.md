@@ -8,6 +8,7 @@ This doc covers how browser code is delivered and composed.
 - `app/L0/_all/mod/_core/admin/AGENTS.md`
 - `app/L0/_all/mod/_core/agent/AGENTS.md`
 - `app/L0/_all/mod/_core/dashboard/AGENTS.md`
+- `app/L0/_all/mod/_core/dashboard_welcome/AGENTS.md`
 - `app/L0/_all/mod/_core/file_explorer/AGENTS.md`
 - `app/L0/_all/mod/_core/framework/AGENTS.md`
 - `app/L0/_all/mod/_core/login_hooks/AGENTS.md`
@@ -16,6 +17,7 @@ This doc covers how browser code is delivered and composed.
 - `app/L0/_all/mod/_core/promptinclude/AGENTS.md`
 - `app/L0/_all/mod/_core/router/AGENTS.md`
 - `app/L0/_all/mod/_core/time_travel/AGENTS.md`
+- `app/L0/_all/mod/_core/user/AGENTS.md`
 - `server/lib/customware/AGENTS.md`
 - `server/api/AGENTS.md`
 
@@ -50,6 +52,7 @@ Important route rules:
 - `#/file_explorer` -> `/mod/_core/file_explorer/view.html`
 - `#/huggingface` -> `/mod/_core/huggingface/view.html`
 - `#/time_travel` -> `/mod/_core/time_travel/view.html`
+- `#/user` -> `/mod/_core/user/view.html`
 - `#/webllm` -> `/mod/_core/webllm/view.html`
 - `#/author/repo/path` -> `/mod/author/repo/path/view.html`
 - if the last route segment already ends in `.html`, the router resolves directly to that file under `/mod/...`
@@ -84,19 +87,21 @@ Important shared router seams include:
 
 The authenticated router backdrop comes from `_core/visual` and stays on fixed viewport layers behind the routed shell, so route-content scrolling should happen inside `.router-stage` without moving the shared canvas gradient or starfield.
 
-Normal routed pages also inherit two router-owned shell clearances outside their own content box:
+Normal routed pages inherit one shared router-owned shell clearance outside their own content box:
 
 - a fixed top inset through `--router-shell-start-clearance`, which keeps normal routes below the fixed shell chrome
-- a shared bottom overscroll allowance through `--router-shell-end-overscroll`, currently `15em`, which appends scrollable space after the routed content so bottom controls are less likely to sit under the onscreen chat overlay
 
-Full-bleed routes that own their own height and overflow rules, such as `_core/spaces`, should explicitly opt out of those shell-owned end clearances in router-owned CSS rather than locally fighting them inside the feature module.
+Normal routed pages should let that router-owned stage column define their outer horizontal span. Do not add extra page-root side padding just to compensate for the fixed header or overlay clearances; if a route needs more inset than the shared column provides, constrain an inner shell or the route's own cards instead. Route-specific bottom breathing room now belongs to the feature module itself; `_core/dashboard` currently keeps its own local `15em` bottom overscroll budget so lower dashboard sections can clear the onscreen chat overlay.
+
+Full-bleed routes that own their own height and overflow rules, such as `_core/spaces`, should keep declaring those route-specific shell overrides in router-owned CSS rather than locally fighting them inside the feature module.
 
 Current first-party shell extension example:
 
 - `_core/onscreen_menu` mounts into `_core/router/shell_start`, owns the viewport-fixed centered routed header bar, keeps `_core/onscreen_menu/bar_start` on the left and `_core/onscreen_menu/bar_end` on the right for shell-level controls, allows route-owned controls injected through `x-inject` to target the existing `[id="_core/onscreen_menu/bar_start"]` container even when that header seam mounts after the route view, keeps a Home button that routes to the empty default route `#/`, exposes `_core/onscreen_menu/items` for feature-owned dropdown menu buttons, sorts contributed controls or items by numeric `data-order`, renders only the auth-dependent Logout or Leave action locally after the dropdown seam, and styles the shell as a compact glass bar that stays flush to the top edge with only the bottom corners rounded while normal routed pages clear it through the router-owned top inset
 - route-owned injected controls in that left header container should generally inherit the bar's overall chrome and avoid adding their own nested button borders or filled backgrounds unless a feature has a strong reason to call out one control
 - `_core/dashboard` now defines one route-owned injected wrapper in that same left header container and exposes ordered `_core/dashboard/topbar_primary` and `_core/dashboard/topbar_secondary` seams inside it, so dashboard-only controls such as the spaces create action or the welcome restore toggle stay route-scoped without teaching `_core/onscreen_menu` about dashboard features
-- `_core/agent`, `_core/file_explorer`, `_core/time_travel`, and `_core/admin` each contribute their own routed header-menu dropdown item through `_core/onscreen_menu/items` with `data-order` values `100`, `200`, `300`, and `400` instead of being hardcoded into the menu shell
+- `_core/dashboard_welcome` uses `_core/dashboard/content_start` for a compact welcome panel above the spaces launcher; that panel keeps a `Resources` row of outbound project or community links above a `Demo Spaces` row of bundled example-space installers, while the hide-state restore action lives separately in `_core/dashboard/topbar_secondary`
+- `_core/agent`, `_core/user`, `_core/file_explorer`, `_core/time_travel`, and `_core/admin` each contribute their own routed header-menu dropdown item through `_core/onscreen_menu/items` with `data-order` values `100`, `150`, `200`, `300`, and `400` instead of being hardcoded into the menu shell
 - `_core/spaces` now defines its current-space control cluster directly inside the spaces route and injects it into `[id="_core/onscreen_menu/bar_start"]` through `x-inject`; that keeps the controls route-owned so they are removed when the route unmounts, while still keeping Back, the space-title toggle, Rearrange, and a confirmed clear-all-widgets trash action together in shared shell chrome, with the metadata editor popover anchored to the title button instead of owning a separate fixed page overlay
 - `_core/time_travel` keeps its page title copy inside the routed page but injects its route-owned Refresh and repository-picker controls into `[id="_core/onscreen_menu/bar_start"]` through `x-inject`, keeping those controls in shared shell chrome without turning them into persistent shell extensions
 - the `_core/admin` shell keeps its admin tabs in the left-pane topbar and ends that topbar with a leave-admin icon button that returns to the current iframe URL
@@ -134,22 +139,31 @@ Modules may also store lightweight metadata manifests under other `ext/` folders
 
 Current first-party example:
 
-- `_core/pages` discovers dashboard page manifests from `mod/<author>/<repo>/ext/pages/*.yaml` through `extensions_load` and renders them as the dashboard's secondary `Panels` section beneath the spaces launcher, reusing the same centered uppercase inset divider heading treatment as `Spaces` while adding a little more top breathing room than the spaces heading instead of presenting them as primary content cards
-- `_core/agent` publishes `ext/pages/agent.yaml` so the dashboard can launch the routed agent settings page without hardcoding it into dashboard or router; that route stays self-contained inside the module, keeps the astronaut info card, exposes only the external repo CTA, and edits the raw `~/conf/personality.system.include.md` prompt-include file
-- `_core/file_explorer` publishes `ext/pages/file_explorer.yaml` for the `#/file_explorer` Files route and also exposes `component.html` so the admin Files tab can reuse the same app-file browser without owning a second implementation
-- `_core/huggingface` publishes `ext/pages/huggingface.yaml` so the dashboard can launch the `Local LLM` page backed by the routed Hugging Face browser runtime
-- `_core/time_travel` publishes `ext/pages/time_travel.yaml` for the `#/time_travel` route, where the current user starts on their own `~` Git history, can pick another writable `L1` or `L2` history repository, page and filter commits, inspect file diffs, travel back to a commit, or revert a commit as a new change
-- `_core/webllm` still has a direct manual `#/webllm` route, but it does not publish a dashboard page manifest
-- each page manifest defines display metadata such as `name`, `path`, optional `description`, optional `icon`, and optional `color`
-- page `path` values may be shorthand route paths such as `huggingface`, prefixed hash paths such as `#/huggingface`, or direct `/mod/...` HTML paths such as `/mod/_core/huggingface/view.html`
-- page manifests are module assets, not writable app-file state
+- `_core/panels` discovers dashboard panel manifests from `mod/<author>/<repo>/ext/panels/*.yaml` through `extensions_load` and renders them as the dashboard's secondary `Panels` section beneath the spaces launcher, reusing the same centered uppercase inset divider heading treatment as `Spaces` while keeping a clearly visible extra top gap from the spaces cards above it instead of presenting the panel row as primary content cards
+- `_core/agent` publishes `ext/panels/agent.yaml` so the dashboard can launch the routed agent settings page without hardcoding it into dashboard or router; that route stays self-contained inside the module, keeps the astronaut info card, exposes only the external repo CTA, and edits the raw `~/conf/personality.system.include.md` prompt-include file
+- `_core/file_explorer` publishes `ext/panels/file_explorer.yaml` for the `#/file_explorer` Files route and also exposes `component.html` so the admin Files tab can reuse the same app-file browser without owning a second implementation
+- `_core/huggingface` publishes `ext/panels/huggingface.yaml` so the dashboard can launch the `Local LLM` page backed by the routed Hugging Face browser runtime
+- `_core/time_travel` publishes `ext/panels/time_travel.yaml` for the `#/time_travel` route, where the current user starts on their own `~` Git history, can pick another writable `L1` or `L2` history repository, page and filter commits, inspect file diffs, travel back to a commit, or revert a commit as a new change
+- `_core/user` publishes `ext/panels/user.yaml` so the dashboard can launch the routed account settings page, where the current user edits `~/user.yaml` directly for `full_name` while password rotation stays server-owned through `/api/password_change`
+- `_core/webllm` still has a direct manual `#/webllm` route, but it does not publish a dashboard panel manifest
+- each panel manifest defines display metadata such as `name`, `path`, optional `description`, optional `icon`, and optional `color`
+- panel `path` values may be shorthand route paths such as `huggingface`, prefixed hash paths such as `#/huggingface`, or direct `/mod/...` HTML paths such as `/mod/_core/huggingface/view.html`
+- panel manifests are module assets, not writable app-file state
+
+Agent-facing helper workflow:
+
+- `/mod/_core/skillset/ext/skills/development/modules-routing/panel-tools.js` is the shared browser helper for panel-aware skills and other small browser execution blocks
+- `listPanels()` returns the visible dashboard panels for the current user with normalized metadata plus a ready-to-use routed `href`
+- `findPanel(target)` accepts a visible panel name, route path like `user`, hash route like `#/user`, direct module HTML path like `/mod/_core/user/view.html`, or a panel object from `listPanels()`
+- `resolvePanelRoutePath(target)` normalizes those target forms into the router route path that `space.router` expects
+- `createPanelHref(target)` and `goToPanel(target)` then build or navigate the routed destination without forcing the caller to duplicate route normalization rules
 
 ## `<x-skill-context>`
 
 Modules may also export live skill-filter tags with hidden helper elements:
 
 ```html
-<x-skill-context tag="agent"></x-skill-context>
+<x-skill-context tag="onscreen"></x-skill-context>
 <x-skill-context tag="admin"></x-skill-context>
 <x-skill-context :tags="$store.router.current?.path ? `route:${$store.router.current.path}` : ''"></x-skill-context>
 ```
@@ -158,8 +172,8 @@ Rules:
 
 - these elements are non-visual helpers, not user-facing UI
 - the current document's `tag` and `tags` values are unioned at skill-discovery time
-- skill frontmatter may use `metadata.when.tags` to require those tags before catalog inclusion or explicit load eligibility
-- skill frontmatter may use `metadata.just_loaded` as either `true` or another `{ tags: [...] }` condition for automatic prompt injection after the catalog
+- skill frontmatter may use `metadata.when` as either `true` or a `{ tags: [...] }` condition to require those tags before catalog inclusion or explicit load eligibility
+- skill frontmatter may use `metadata.loaded` as either `true` or another `{ tags: [...] }` condition for automatic prompt injection, and may use `metadata.placement` to choose whether that content lands in system, transient, or history context, except that auto-loaded skills may not resolve to `history` and therefore fall back to `system` unless they explicitly set `transient`
 - modules own the actual tag names they emit; there is no separate centralized registry in the framework
 - Alpine-bound attributes are the normal way to keep those tags synced with routed or store-owned state
 

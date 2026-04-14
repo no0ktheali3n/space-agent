@@ -6,12 +6,10 @@ body {
 
 body.app-page-router {
   --router-shell-start-clearance: calc(env(safe-area-inset-top, 0px) + clamp(34px, 4.2vw, 43px));
-  --router-shell-end-overscroll: 15em;
   margin: 0;
   overflow-x: hidden;
   overflow-y: auto;
   scroll-padding-top: var(--router-shell-start-clearance);
-  scroll-padding-bottom: var(--router-shell-end-overscroll);
   color: var(--color-text);
   font: 15px/1.5 "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
@@ -43,7 +41,6 @@ body.app-page-router > div[x-data] {
   min-height: 0;
   overflow: visible;
   overscroll-behavior: auto;
-  scroll-padding-bottom: var(--router-shell-end-overscroll);
 }
 
 .router-stage[data-route-path="spaces"] {
@@ -62,13 +59,6 @@ body.app-page-router > div[x-data] {
   padding: var(--router-shell-start-clearance) 0 0;
 }
 
-.router-stage-inner::after {
-  content: "";
-  display: block;
-  block-size: var(--router-shell-end-overscroll);
-  pointer-events: none;
-}
-
 .router-stage-inner[data-route-path="spaces"] {
   width: 100%;
   max-width: none;
@@ -76,10 +66,6 @@ body.app-page-router > div[x-data] {
   min-height: 100%;
   margin: 0;
   padding: 0;
-}
-
-.router-stage-inner[data-route-path="spaces"]::after {
-  content: none;
 }
 
 .router-stage-inner[data-route-path="spaces"] > .router-route-frame,

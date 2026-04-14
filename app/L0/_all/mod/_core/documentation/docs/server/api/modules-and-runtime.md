@@ -54,6 +54,7 @@ Important runtime endpoints:
 - `extensions_load`
 - `debug_path_index`
 - `password_generate`
+- `password_change`
 - `user_self_info`
 
 `extensions_load`:
@@ -64,7 +65,7 @@ Important runtime endpoints:
 - reads the replicated shared-state shards needed for the caller's visible module owners instead of scanning the full watchdog path index
 - receives grouped lookup batches from the frontend; the batching policy itself lives in the frontend loader, not in the endpoint contract
 - first-party HTML anchors and JS hooks use it for `ext/html/...` and `ext/js/...`
-- first-party page indexing also uses it to enumerate `ext/pages/*.yaml` manifests while still honoring readable-layer permissions and same-path overrides
+- first-party panel indexing also uses it to enumerate `ext/panels/*.yaml` manifests while still honoring readable-layer permissions and same-path overrides
 
 `debug_path_index`:
 
@@ -84,6 +85,12 @@ Important runtime endpoints:
 - is authenticated
 - returns a backend-sealed password payload
 - should stay narrow and backend-owned
+
+`password_change`:
+
+- is authenticated and applies only to the current user
+- validates the current password through the auth service before generating the replacement sealed verifier
+- rewrites `meta/password.json`, clears stored sessions, and clears the current browser cookie so the frontend can return to `/login`
 
 ## Health Helper
 

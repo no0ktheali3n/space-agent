@@ -4,7 +4,7 @@ description: Create, update, and remove users and memberships
 metadata:
   when:
     tags:
-      - agent
+      - onscreen
 ---
 
 Use this skill when the user asks to create a user, remove a user, change a user's full name, reset a password, revoke sessions, or explain how user account files are organized.

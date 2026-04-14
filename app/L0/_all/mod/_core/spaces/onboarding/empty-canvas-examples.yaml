@@ -1,10 +1,11 @@
 examples:
-  - text: What's the weather here?
+  - text: Create a weather report
+    prompt: Create a weather report. Use https://ipapi.co/json/ to get an approximate location. Do not use exact browser geolocation. Fetch weather from https://api.met.no/weatherapi/locationforecast/2.0/compact. Use the `pdf-report` skill to create and download a browser PDF report with structure and styling chosen for this report instead of a canned template, then reply with a brief weather summary.
     kind: chat
     icon: chat_bubble
     color: "#7dc6ff"
     code: |
-      await helpers.submitPrompt(example.text)
+      await helpers.submitPrompt(example.prompt)
   - text: Retro Arcade
     kind: widget
     icon: gamepad
@@ -43,6 +44,13 @@ examples:
     color: "#ff7566"
     code: |
       await helpers.installOnboardingExampleWidget("rickroll-player.yaml")
+  - text: Flip the space
+    prompt: Rotate the whole page by another 180 degrees from whatever its current rotation is. Do not reset it to an absolute orientation or reuse the same fixed transform value; preserve the current rotation state and add 180 degrees with a two-second CSS transition.
+    kind: chat
+    icon: chat_bubble
+    color: "#ff9bc9"
+    code: |
+      await helpers.submitPrompt(example.prompt)
   - text: Daily News
     kind: widget
     icon: newspaper
@@ -87,15 +95,13 @@ examples:
         "crypto-dashboard/btc-vs-sp500.yaml",
         "crypto-dashboard/crypto-news-feed.yaml"
       ])
-  - text: Flip the space upside down slowly
-    kind: chat
-    icon: chat_bubble
-    color: "#ff9bc9"
-    code: |
-      await helpers.submitPrompt(example.text)
-  - text: What's the Bitcoin and ETH price?
+  - text: Check documentation
+    prompt: >
+      Do the following in order. 1. Load the documentation skill. 2. When it is
+      loaded, ask the user exactly: `What would you like to know from the
+      documentation?`
     kind: chat
     icon: chat_bubble
     color: "#f3c46c"
     code: |
-      await helpers.submitPrompt(example.text)
+      await helpers.submitPrompt(example.prompt)

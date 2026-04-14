@@ -78,7 +78,7 @@ Important rules:
 - `layer_limit.js` also accepts `X-Space-Max-Layer` as an explicit request-level override source for module and extension fetches
 - worker-side module lookup must read replicated `file_index` and group shards from the shared `stateSystem`; only the primary watchdog owns filesystem scanning and shard publication
 - frontend HTML anchors resolve through module `ext/html/...` paths and JS hooks resolve through module `ext/js/...` paths
-- modules may also resolve other extension-owned assets through the same ranked `ext/...` override model when the frontend calls `extensions_load` directly; the current first-party example is `ext/pages/*.yaml`
+- modules may also resolve other extension-owned assets through the same ranked `ext/...` override model when the frontend calls `extensions_load` directly; the current first-party example is `ext/panels/*.yaml`
 - exact same override keys replace lower-ranked entries
 - different extension filenames under the same extension point compose together
 - `module_inheritance.js` and `extension_overrides.js` are the only supported paths for `/mod/...` and extension resolution

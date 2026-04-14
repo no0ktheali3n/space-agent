@@ -24,12 +24,17 @@ Examples:
 - The onscreen prompt catalog lists only top-level skills from `ext/skills/*/SKILL.md`.
 - Nested skills are not listed by default.
 - Both the catalog and explicit `space.skills.load(...)` calls evaluate the current document's `<x-skill-context>` tags before a skill is eligible.
-- `metadata.when.tags` requires all listed tags before the skill becomes catalog-loadable.
-- Any readable skill at any depth can still be injected into the system prompt when its frontmatter sets `metadata.just_loaded: true` or another `metadata.just_loaded.tags` condition that currently passes.
-- Just-loaded skills appear after the catalog in the `just loaded` prompt block as repeated `id: <skill-id>` markers followed by the skill body text.
+- `metadata.when` may be `true` or a `{ tags: [...] }` condition; `metadata.when.tags` requires all listed tags before the skill becomes catalog-loadable.
+- `metadata.placement` accepts `system`, `transient`, or `history`; ordinary skills default missing or invalid placement to `history`, but auto-loaded skills may not resolve to `history`, so missing or invalid placement and explicit `history` all fall back to `system` unless the skill explicitly sets `transient`.
+- Any readable skill at any depth can still be auto-loaded when its frontmatter sets `metadata.loaded: true` or another `metadata.loaded.tags` condition that currently passes.
+- Auto-loaded skills appear after the catalog in the `auto loaded` prompt block when their effective placement is `system`, or in the transient channel when they explicitly set `metadata.placement: transient`.
 - Routing skills should tell the agent which deeper skill ids to load next.
-- `space.skills.load("<path>")` loads the full skill file on demand and inserts its content into history through execution output.
-- A plain top-level `await space.skills.load("<path>")` is enough to inject the skill content; use `return` only if you also want the execution result value explicitly.
+- `space.skills.load("<path>")` loads the full skill file on demand and applies the same placement rule.
+- `history` placement keeps the loaded skill body in ordinary execution-output history.
+- `system` placement stores the loaded skill in the current chat's runtime system-skill registry and execution reports `skill loaded to system message`.
+- `transient` placement stores the loaded skill in the current chat's runtime transient-skill registry and execution reports `skill loaded to transient area`.
+- Auto-loaded skills cannot resolve to `history`; if they also set `metadata.loaded`, then `metadata.placement: history` is treated as `system`.
+- A plain top-level `await space.skills.load("<path>")` is enough to apply the placement; use `return` only if you also want the execution result value explicitly.
 
 ## Conflict Rules
 
@@ -41,11 +46,12 @@ Examples:
 ## Skill Content Rules
 
 - Start with frontmatter containing `name`, `description`, and optional runtime-owned `metadata`.
-- Use `<x-skill-context>` tags in mounted DOM when a module needs to expose live skill-filter state such as `agent`, `admin`, `route:spaces`, or `space:open`.
+- Use `<x-skill-context>` tags in mounted DOM when a module needs to expose live skill-filter state such as `onscreen`, `admin`, `route:spaces`, or `space:open`.
 - Use `metadata.when.tags` when the skill should exist only in those live contexts.
-- Use `metadata.just_loaded` only when the skill should be auto-injected after the catalog without an explicit `space.skills.load(...)` call.
-- Prompt-facing skill text is token-budgeted. Keep wording terse, avoid unnecessary markdown or filler, and measure before or after changes with the local tokenizer when you edit just-loaded or catalog-facing skill text.
-- When a skill needs reusable browser logic, prefer a small module-local JS helper imported from a stable `/mod/<author>/<repo>/...` path instead of pasting a long inline script into `SKILL.md`.
+- Use `metadata.loaded` only when the skill should be auto-injected without an explicit `space.skills.load(...)` call.
+- Use `metadata.placement: system` when the skill body is durable instruction, `metadata.placement: transient` when it should live in the mutable transient block, and let the default `history` placement stand only for ordinary non-auto-loaded skills that should behave like normal conversation context.
+- Prompt-facing skill text is token-budgeted. Keep wording terse, avoid unnecessary markdown or filler, and measure before or after changes with the local tokenizer when you edit auto-loaded or catalog-facing skill text.
+- When a skill needs reusable browser logic, prefer a small JS helper stored inside that skill's own folder and imported from a stable `/mod/<author>/<repo>/ext/skills/...` path instead of pasting a long inline script into `SKILL.md`.
 - Keep the top-level router skill directive and concise.
 - Keep nested skills focused on one stable area.
 - Prefer exact file paths, runtime names, and examples over vague guidance.

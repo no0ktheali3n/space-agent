@@ -19,9 +19,10 @@ If the user wants a reusable app surface, tool UI, settings panel, or workflow s
 - Build a custom routed page when the extension should behave like a first-class feature screen instead of a widget on a persisted space canvas.
 - Use spaces when the user wants a configurable board of widgets that lives under `~/spaces/...`.
 - Use a routed page when the feature owns its own layout, state, and navigation flow.
-- To make a custom page appear in the dashboard `Pages` section, add `ext/pages/<name>.yaml` in the owning module.
-- Page manifests should define `name`, `path`, optional `description`, optional `icon`, and optional `color`.
-- For first-party `_core` routes, the manifest `path` may use shorthand such as `webllm` instead of a full `/mod/...` path.
+- To make a custom page appear in the dashboard `Panels` section, add `ext/panels/<name>.yaml` in the owning module.
+- Panel manifests should define `name`, `path`, optional `description`, optional `icon`, and optional `color`.
+- For first-party `_core` routes, the manifest `path` may use shorthand such as `user` instead of a full `/mod/...` path.
+- Panel manifest `path` values may use shorthand route paths such as `user`, prefixed hash paths such as `#/user`, or direct `/mod/...` HTML paths such as `/mod/_core/user/view.html`.
 
 ## Router Resolution
 
@@ -55,7 +56,7 @@ app/L0/_all/mod/_core/<feature>/
   <feature>.css
   store.js
   panel.html or supporting components
-  ext/pages/<feature>.yaml when the page should be discoverable from the dashboard
+  ext/panels/<feature>.yaml when the page should be discoverable from the dashboard
   ext/html/... only when the feature mounts into an existing seam
 ```
 
@@ -66,10 +67,10 @@ app/L0/_all/mod/_core/my_tool/
   view.html
   my-tool.css
   store.js
-  ext/pages/my-tool.yaml
+  ext/panels/my-tool.yaml
 ```
 
-Example page manifest:
+Example panel manifest:
 
 ```yaml
 name: My Tool
@@ -79,22 +80,33 @@ icon: build
 color: "#94bcff"
 ```
 
-## Page Helper Script
+## Panel Helper Script
 
 Reusable helper script:
 
 ```js
-const pageTools = await import("/mod/_core/skillset/ext/skills/development/modules-routing/page-tools.js");
+const panelTools = await import("/mod/_core/skillset/ext/skills/development/modules-routing/panel-tools.js");
 ```
 
 Available helpers:
 
-- `await pageTools.listPages()` returns the normalized dashboard page entries discovered from `ext/pages/*.yaml`
-- `await pageTools.findPage("webllm")` resolves a page by route path or visible name
-- `await pageTools.createPageHref("webllm")` returns the routed href
-- `await pageTools.goToPage("webllm")` navigates through `space.router` with a hash fallback
+- `await panelTools.listPanels()` returns the normalized dashboard panel entries discovered from `ext/panels/*.yaml`, each with `routePath` and ready-to-use `href`
+- `await panelTools.findPanel("user")` resolves a panel by visible name, route path, hash route, direct `/mod/...` HTML path, or a panel object returned by `listPanels()`
+- `await panelTools.resolvePanelRoutePath("/mod/_core/user/view.html")` normalizes a panel target into its router route path
+- `await panelTools.createPanelHref("#/user")` returns the routed href
+- `await panelTools.goToPanel("User")` navigates through `space.router` with a hash fallback
+- `await panelTools.openPanel(panelEntry)` is an alias for `goToPanel(...)`
 
-Use those helpers when you need to inspect the registered pages before wiring new links or when the user asks to navigate to one of them.
+Use those helpers when you need to inspect the registered panels before wiring new links or when the user asks to navigate to one of them.
+
+Example:
+
+```js
+const panelTools = await import("/mod/_core/skillset/ext/skills/development/modules-routing/panel-tools.js");
+const panels = await panelTools.listPanels();
+const userPanel = await panelTools.findPanel("/mod/_core/user/view.html");
+await panelTools.goToPanel(userPanel ?? "user");
+```
 
 ## Shell Rules
 

@@ -18,16 +18,67 @@ export async function buildAdminSkillsPromptSection() {
   });
 }
 
-export async function buildAdminJustLoadedSkillsPromptSection() {
+export async function buildAdminAutoLoadedSkillsPromptSection() {
   const index = await sharedSkills.loadSkillIndex({
     maxLayer: ADMIN_MAX_LAYER,
     pattern: ADMIN_ALL_SKILL_FILE_PATTERN
   });
-  return sharedSkills.buildJustLoadedSkillsPromptSection(index);
+  return sharedSkills.buildAutoLoadedSkillsPromptSection(index);
+}
+
+export async function buildAdminSkillPromptContext(options = {}) {
+  const includeCatalog = options.includeCatalog !== false;
+  const includeAutoLoaded = options.includeAutoLoaded !== false;
+  const includeRuntimeLoaded = options.includeRuntimeLoaded !== false;
+  const catalogIndex = includeCatalog
+    ? await sharedSkills.loadSkillIndex({
+        maxLayer: ADMIN_MAX_LAYER,
+        pattern: ADMIN_TOP_LEVEL_SKILL_FILE_PATTERN
+      })
+    : null;
+  const autoLoadedIndex = includeAutoLoaded
+    ? await sharedSkills.loadSkillIndex({
+        maxLayer: ADMIN_MAX_LAYER,
+        pattern: ADMIN_ALL_SKILL_FILE_PATTERN
+      })
+    : null;
+
+  return {
+    catalogSection: includeCatalog
+      ? sharedSkills.buildSkillCatalogPromptSection(catalogIndex, {
+          loadCommand: 'await space.admin.loadSkill("id")'
+        })
+      : "",
+    autoLoadedHistoryMessages: includeAutoLoaded
+      ? sharedSkills.buildAutoLoadedSkillsHistoryMessages(autoLoadedIndex)
+      : [],
+    autoLoadedSkillsSection: includeAutoLoaded
+      ? sharedSkills.buildAutoLoadedSkillsPromptSection(autoLoadedIndex)
+      : "",
+    autoLoadedTransientSections: includeAutoLoaded
+      ? sharedSkills.buildAutoLoadedSkillsTransientSections(autoLoadedIndex, {
+          headingPrefix: "Skill",
+          keyPrefix: "skill:auto",
+          orderBase: -200
+        })
+      : [],
+    loadedSkillsSection: includeRuntimeLoaded
+      ? sharedSkills.buildRuntimeLoadedSkillsPromptSection({
+          heading: "loaded skills"
+        })
+      : "",
+    loadedTransientSections: includeRuntimeLoaded
+      ? sharedSkills.buildRuntimeLoadedSkillsTransientSections({
+          headingPrefix: "Loaded Skill",
+          keyPrefix: "skill:loaded",
+          orderBase: -100
+        })
+      : []
+  };
 }
 
 export async function loadAdminSkill(name) {
-  return {
+  const loadedSkill = {
     __spaceAdminSkill: true,
     ...(await sharedSkills.loadSkill({
       maxLayer: ADMIN_MAX_LAYER,
@@ -35,6 +86,9 @@ export async function loadAdminSkill(name) {
     })),
     skillName: sharedSkills.normalizeSkillPath(name)
   };
+  loadedSkill.loadResponseText = sharedSkills.getSkillLoadResponseText(loadedSkill);
+  sharedSkills.registerLoadedSkill(loadedSkill);
+  return loadedSkill;
 }
 
 export function installAdminSkillRuntime() {

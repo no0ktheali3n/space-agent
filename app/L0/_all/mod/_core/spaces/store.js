@@ -34,6 +34,7 @@ import {
   resolveAppUrl,
   saveSpaceLayout,
   saveSpaceMeta,
+  upsertWidgets as upsertWidgetsInStorage,
   upsertWidget
 } from "/mod/_core/spaces/storage.js";
 import {
@@ -54,6 +55,10 @@ import {
   normalizeSpaceIconColor,
   normalizeSpaceTitle
 } from "/mod/_core/spaces/space-metadata.js";
+import {
+  buildSpaceThumbnailUrlFromPath,
+  queueSpaceThumbnailCapture
+} from "/mod/_core/spaces/thumbnail_experiment/index.js";
 import { positionPopover } from "/mod/_core/visual/chrome/popover.js";
 import { openIconColorSelector } from "/mod/_core/visual/icons/icon-color-selector.js";
 import {
@@ -550,7 +555,9 @@ function ensureSpacesRuntimeNamespace() {
       });
 
       if (activeSpacesStore) {
-        await activeSpacesStore.handleExternalMutation(targetSpaceId);
+        await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true
+        });
       }
 
       return savedSpace;
@@ -572,6 +579,7 @@ function ensureSpacesRuntimeNamespace() {
 
       if (activeSpacesStore) {
         await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true,
           widgetId: result.widgetId
         });
       }
@@ -605,7 +613,9 @@ function ensureSpacesRuntimeNamespace() {
       });
 
       if (activeSpacesStore) {
-        await activeSpacesStore.handleExternalMutation(targetSpaceId);
+        await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true
+        });
       }
 
       return savedSpace;
@@ -682,7 +692,9 @@ function ensureSpacesRuntimeNamespace() {
       });
 
       if (activeSpacesStore) {
-        await activeSpacesStore.handleExternalMutation(targetSpaceId);
+        await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true
+        });
       }
 
       clearCurrentWidgetTransientSection(result.widgetId);
@@ -702,7 +714,9 @@ function ensureSpacesRuntimeNamespace() {
       });
 
       if (activeSpacesStore) {
-        await activeSpacesStore.handleExternalMutation(targetSpaceId);
+        await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true
+        });
       }
 
       result.widgetIds.forEach((widgetId) => clearCurrentWidgetTransientSection(widgetId));
@@ -735,7 +749,9 @@ function ensureSpacesRuntimeNamespace() {
             };
 
       if (activeSpacesStore) {
-        await activeSpacesStore.handleExternalMutation(targetSpaceId);
+        await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true
+        });
       }
 
       result.widgetIds.forEach((widgetId) => clearCurrentWidgetTransientSection(widgetId));
@@ -756,6 +772,7 @@ function ensureSpacesRuntimeNamespace() {
 
       if (activeSpacesStore) {
         await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true,
           widgetId: result.widgetId
         });
       }
@@ -771,7 +788,9 @@ function ensureSpacesRuntimeNamespace() {
       const savedSpace = await saveSpaceLayout(options);
 
       if (activeSpacesStore && options.refresh !== false) {
-        await activeSpacesStore.handleExternalMutation(savedSpace.id);
+        await activeSpacesStore.handleExternalMutation(savedSpace.id, {
+          captureThumbnail: true
+        });
       }
 
       return savedSpace;
@@ -780,7 +799,9 @@ function ensureSpacesRuntimeNamespace() {
       const savedSpace = await saveSpaceMeta(options);
 
       if (activeSpacesStore && options.refresh !== false) {
-        await activeSpacesStore.handleExternalMutation(savedSpace.id);
+        await activeSpacesStore.handleExternalMutation(savedSpace.id, {
+          captureThumbnail: true
+        });
       }
 
       return savedSpace;
@@ -799,7 +820,9 @@ function ensureSpacesRuntimeNamespace() {
       });
 
       if (activeSpacesStore) {
-        await activeSpacesStore.handleExternalMutation(targetSpaceId);
+        await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true
+        });
       }
 
       return savedSpace;
@@ -818,6 +841,8 @@ function ensureSpacesRuntimeNamespace() {
 
       if (activeSpacesStore && options.refresh !== false) {
         await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true,
+          resetCamera: options.resetCamera === true,
           widgetId: result.widgetId
         });
       }
@@ -827,6 +852,27 @@ function ensureSpacesRuntimeNamespace() {
         spaceId: targetSpaceId,
         widgetId: result.widgetId
       });
+    },
+    upsertWidgets: async (options = {}) => {
+      const targetSpaceId = options.spaceId || activeSpacesStore?.currentSpaceId;
+
+      if (!targetSpaceId) {
+        throw new Error("A target spaceId is required to save widgets.");
+      }
+
+      const result = await upsertWidgetsInStorage({
+        ...options,
+        spaceId: targetSpaceId
+      });
+
+      if (activeSpacesStore && options.refresh !== false) {
+        await activeSpacesStore.handleExternalMutation(targetSpaceId, {
+          captureThumbnail: true,
+          resetCamera: options.resetCamera === true
+        });
+      }
+
+      return result;
     },
     widgetApiVersion: WIDGET_API_VERSION
   };
@@ -3214,20 +3260,88 @@ const spacesModel = {
     this.spaceList = this.spaceList.map((entry) =>
       entry?.id !== spaceRecord.id
         ? entry
-        : {
-            ...entry,
-            displayIcon: getSpaceDisplayIcon(spaceRecord),
-            displayIconColor: getSpaceDisplayIconColor(spaceRecord),
-            displayTitle: getSpaceDisplayTitle(spaceRecord),
-            agentInstructions: spaceRecord.agentInstructions || spaceRecord.specialInstructions || "",
-            icon: spaceRecord.icon,
-            iconColor: spaceRecord.iconColor,
-            specialInstructions: spaceRecord.agentInstructions || spaceRecord.specialInstructions || "",
-            title: spaceRecord.title,
-            updatedAt: spaceRecord.updatedAt,
-            updatedAtLabel: nextUpdatedAtLabel
-        }
+        : (() => {
+            const widgetCount = Array.isArray(spaceRecord?.widgetIds) ? spaceRecord.widgetIds.length : 0;
+            const nextThumbnailPath =
+              widgetCount > 0
+                ? String(spaceRecord.thumbnailPath || entry?.thumbnailPath || "").trim()
+                : "";
+
+            return {
+              ...entry,
+              displayIcon: getSpaceDisplayIcon(spaceRecord),
+              displayIconColor: getSpaceDisplayIconColor(spaceRecord),
+              displayTitle: getSpaceDisplayTitle(spaceRecord),
+              agentInstructions: spaceRecord.agentInstructions || spaceRecord.specialInstructions || "",
+              icon: spaceRecord.icon,
+              iconColor: spaceRecord.iconColor,
+              specialInstructions: spaceRecord.agentInstructions || spaceRecord.specialInstructions || "",
+              thumbnailPath: nextThumbnailPath,
+              thumbnailUrl: buildSpaceThumbnailUrlFromPath(nextThumbnailPath, spaceRecord.updatedAt),
+              title: spaceRecord.title,
+              updatedAt: spaceRecord.updatedAt,
+              updatedAtLabel: nextUpdatedAtLabel
+            };
+          })()
     );
+  },
+
+  applySpaceThumbnailCaptureResult(result = {}) {
+    const targetSpaceId = normalizeOptionalSpaceId(result.spaceId);
+
+    if (!targetSpaceId) {
+      return;
+    }
+
+    const nextThumbnailPath = result.deleted ? "" : String(result.path || "").trim();
+    const nextThumbnailUrl = result.deleted ? "" : String(result.url || "").trim();
+    const didUpdateCurrentSpace = this.currentSpace?.id === targetSpaceId;
+
+    if (didUpdateCurrentSpace) {
+      this.currentSpace = {
+        ...this.currentSpace,
+        thumbnailPath: nextThumbnailPath,
+        thumbnailUrl: nextThumbnailUrl
+      };
+    }
+
+    let didUpdateSpaceList = false;
+    this.spaceList = this.spaceList.map((entry) => {
+      if (entry?.id !== targetSpaceId) {
+        return entry;
+      }
+
+      didUpdateSpaceList = true;
+
+      return {
+        ...entry,
+        thumbnailPath: nextThumbnailPath,
+        thumbnailUrl: nextThumbnailUrl
+      };
+    });
+
+    if (didUpdateSpaceList || didUpdateCurrentSpace) {
+      syncSpacesRuntimeState();
+    }
+  },
+
+  queueCurrentSpaceThumbnailCapture(options = {}) {
+    const targetSpaceId = normalizeOptionalSpaceId(options.spaceId ?? this.currentSpaceId);
+
+    if (!targetSpaceId || targetSpaceId !== this.currentSpaceId || !this.refs.canvas || !this.refs.grid) {
+      return;
+    }
+
+    queueSpaceThumbnailCapture({
+      canvasElement: this.refs.canvas,
+      gridElement: this.refs.grid,
+      onComplete: (result) => {
+        this.applySpaceThumbnailCaptureResult(result);
+      },
+      spaceId: targetSpaceId,
+      updatedAt: String((options.updatedAt ?? this.currentSpace?.updatedAt) || "").trim(),
+      widgetCount: Array.isArray(this.currentSpace?.widgetIds) ? this.currentSpace.widgetIds.length : 0
+    });
   },
 
   applyCurrentSpaceSnapshot(spaceRecord, options = {}) {
@@ -3235,7 +3349,12 @@ const spacesModel = {
       return;
     }
 
-    this.currentSpace = spaceRecord;
+    const existingSpaceListEntry = this.spaceList.find((entry) => entry?.id === spaceRecord.id);
+    this.currentSpace = {
+      ...spaceRecord,
+      thumbnailPath: String(spaceRecord.thumbnailPath || existingSpaceListEntry?.thumbnailPath || "").trim(),
+      thumbnailUrl: String(spaceRecord.thumbnailUrl || existingSpaceListEntry?.thumbnailUrl || "").trim()
+    };
     this.currentSpaceIconColorDraft = spaceRecord.iconColor || "";
     this.currentSpaceIconDraft = spaceRecord.icon || "";
     this.currentSpaceId = spaceRecord.id;
@@ -3319,6 +3438,11 @@ const spacesModel = {
           this.updateSpaceListEntry(this.currentSpace);
           syncSpacesRuntimeState();
         }
+
+        this.queueCurrentSpaceThumbnailCapture({
+          spaceId: targetSpaceId,
+          updatedAt: savedSpace.updatedAt
+        });
 
         return savedSpace;
       } catch (error) {
@@ -3932,6 +4056,10 @@ const spacesModel = {
         if (this.currentSpace?.id === savedSpace.id) {
           this.currentSpace.updatedAt = savedSpace.updatedAt;
           await this.loadSpacesList();
+          this.queueCurrentSpaceThumbnailCapture({
+            spaceId: savedSpace.id,
+            updatedAt: savedSpace.updatedAt
+          });
         }
       })
       .catch((error) => {
@@ -3970,7 +4098,9 @@ const spacesModel = {
         spaceId: this.currentSpace.id,
         widgetId
       });
-      await this.handleExternalMutation(this.currentSpace.id);
+      await this.handleExternalMutation(this.currentSpace.id, {
+        captureThumbnail: true
+      });
     } catch (error) {
       logSpacesError("closeWidget failed", error, {
         spaceId: this.currentSpace.id,
@@ -4634,6 +4764,14 @@ const spacesModel = {
         resetCamera: shouldResetCamera,
         widgetId: options.widgetId
       });
+
+      if (options.captureThumbnail !== false) {
+        this.queueCurrentSpaceThumbnailCapture({
+          spaceId,
+          updatedAt: this.currentSpace?.updatedAt
+        });
+      }
+
       return;
     }
 

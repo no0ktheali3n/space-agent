@@ -4,7 +4,7 @@
 
 `_core/webllm/` owns the first-party browser inference test surface for WebLLM.
 
-It provides a direct routed page at `#/webllm`, keeps the WebLLM runtime isolated inside a dedicated module-local worker, and exposes a minimal test chat for loading browser-side models, sending plain chat turns, stopping inference, and reporting simple throughput metrics. It is intentionally not advertised as a dashboard page.
+It provides a direct routed page at `#/webllm`, keeps the WebLLM runtime isolated inside a dedicated module-local worker, and exposes a minimal test chat for loading browser-side models, sending plain chat turns, stopping inference, and reporting simple throughput metrics. It is intentionally not advertised through a dashboard panel.
 
 Documentation is top priority for this module. After any change under `_core/webllm/`, update this file and any affected parent docs in the same session.
 
@@ -26,12 +26,12 @@ This module owns:
 Current route contract:
 
 - the test route is `#/webllm`
-- this module must not publish an `ext/pages/*.yaml` dashboard manifest; the Hugging Face-backed Local LLM page is the only local-LLM page advertised on the dashboard
+- this module must not publish an `ext/panels/*.yaml` dashboard panel manifest; the Hugging Face-backed Local LLM page is the only local-LLM page advertised on the dashboard
 - the page is browser-only and should not require backend API changes
 - the routed page is intentionally a compact, low-chrome manual test surface, not a general agent runtime
 - `view.html` should import the config sidebar through `<x-component path="/mod/_core/webllm/config-sidebar.html" mode="testing">` instead of inlining that sidebar markup directly
 - the sidebar should surface the currently loaded model first, inside a slightly more prominent rounded panel with a larger model label, a compact right-aligned state badge, and an unload control beside the model name; while loading, that action should switch to `Stop` and cancel the in-flight load/download, and the progress bar should keep a small visible fill immediately so startup does not look stalled before precise progress arrives
-- on desktop, the route should sit slightly inside the viewport instead of filling it edge to edge, and the models block should expand to consume the remaining sidebar height above the advanced section
+- on desktop, the route should stay viewport-capped without adding extra horizontal page padding; the router stage already constrains the outer width, and the models block should expand to consume the remaining sidebar height above the advanced section
 - on desktop, the routed page itself should stay viewport-capped and let only the model list and chat thread own the long-scroll behavior; the route shell should not grow tall enough to push the composer below the fold
 - keep that desktop viewport clamp route-local inside `webllm.css`, mirroring the Hugging Face page contract instead of adding a router-shell-specific height override
 - the advanced custom-model form should stay collapsed by default

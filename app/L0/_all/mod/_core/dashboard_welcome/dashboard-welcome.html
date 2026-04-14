@@ -20,34 +20,59 @@
           <div class="dashboard-welcome-content">
             <div class="dashboard-welcome-copy">
               <p class="page-eyebrow">Welcome</p>
-              <h2>Start by trying out some of the demos</h2>
+              <h2>Start fast</h2>
+              <p>Open the project links or launch one of the bundled demo spaces.</p>
             </div>
 
-            <div class="dashboard-welcome-examples">
-              <template x-for="example in examples" :key="example.id">
-                <button
-                  type="button"
-                  class="dashboard-welcome-example"
-                  :disabled="Boolean(installingExampleId)"
-                  @click="installExample(example.id)"
-                >
-                  <span
-                    class="dashboard-welcome-example-icon"
-                    :style="{ '--dashboard-welcome-example-icon-color': example.displayIconColor }"
-                  >
-                    <x-icon x-text="example.displayIcon"></x-icon>
-                  </span>
+            <div class="dashboard-welcome-sections">
+              <section class="dashboard-welcome-section" aria-label="Resources">
+                <h3 class="dashboard-welcome-section-title">Resources</h3>
 
-                  <div class="dashboard-welcome-example-copy">
-                    <h3 x-text="example.title"></h3>
-                    <p x-text="example.description"></p>
-                  </div>
+                <div class="dashboard-welcome-actions dashboard-welcome-resources">
+                  <template x-for="resource in resources" :key="resource.id">
+                    <a
+                      class="dashboard-welcome-link"
+                      :href="resource.href"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
+                      <span class="dashboard-welcome-link-label" x-text="resource.label"></span>
 
-                  <span class="dashboard-welcome-example-arrow" aria-hidden="true">
-                    <x-icon x-text="installingExampleId === example.id ? 'hourglass_top' : 'arrow_forward'"></x-icon>
-                  </span>
-                </button>
-              </template>
+                      <span class="dashboard-welcome-link-arrow" aria-hidden="true">
+                        <x-icon>open_in_new</x-icon>
+                      </span>
+                    </a>
+                  </template>
+                </div>
+              </section>
+
+              <section class="dashboard-welcome-section" aria-label="Demo spaces">
+                <h3 class="dashboard-welcome-section-title">Demo Spaces</h3>
+
+                <div class="dashboard-welcome-actions dashboard-welcome-examples">
+                  <template x-for="example in examples" :key="example.id">
+                    <button
+                      type="button"
+                      class="dashboard-welcome-example"
+                      :disabled="Boolean(installingExampleId)"
+                      @click="installExample(example.id)"
+                    >
+                      <span
+                        class="dashboard-welcome-example-icon"
+                        :style="{ '--dashboard-welcome-example-icon-color': example.displayIconColor }"
+                      >
+                        <x-icon x-text="example.displayIcon"></x-icon>
+                      </span>
+
+                      <span class="dashboard-welcome-example-label" x-text="example.title"></span>
+
+                      <span class="dashboard-welcome-example-arrow" aria-hidden="true">
+                        <x-icon x-text="installingExampleId === example.id ? 'hourglass_top' : 'arrow_forward'"></x-icon>
+                      </span>
+                    </button>
+                  </template>
+                </div>
+              </section>
             </div>
           </div>
         </div>

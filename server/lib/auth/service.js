@@ -14,8 +14,10 @@ import {
   encodeBase64Url,
   migratePasswordVerifierRecord,
   openPasswordVerifierRecord,
-  verifyLoginProof
+  verifyLoginProof,
+  verifyPassword
 } from "./passwords.js";
+import { setUserPassword } from "./user_manage.js";
 import {
   readUserLogins,
   readUserPasswordVerifier,
@@ -33,6 +35,12 @@ const SESSION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,200}$/u;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_VERIFIER_PREFIX = "space-session-token-v1";
 const USER_AGENT_MAX_LENGTH = 512;
+
+function createStatusError(message, statusCode) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
 
 function createAnonymousUser(overrides = {}) {
   return {
@@ -623,6 +631,28 @@ export function createAuthService(options = {}) {
     return true;
   }
 
+  function changePassword({ currentPassword, newPassword, requestUser }) {
+    if (isSingleUserApp(runtimeParams)) {
+      throw createStatusError("Password login is disabled in single-user mode.", 403);
+    }
+
+    const authenticatedUser = getAuthenticatedUser(requestUser);
+    const normalizedUsername = normalizeEntityId(authenticatedUser.username);
+    const verifier = normalizedUsername ? readCurrentPasswordVerifier(normalizedUsername) : null;
+
+    if (!verifier || !verifyPassword(currentPassword, verifier)) {
+      throw createStatusError("Current password is incorrect.", 401);
+    }
+
+    setUserPassword(projectRoot, normalizedUsername, newPassword, {
+      runtimeParams
+    });
+
+    return {
+      username: normalizedUsername
+    };
+  }
+
   function generatePasswordVerifier(password) {
     return createPasswordVerifier(password, authKeys);
   }
@@ -710,6 +740,7 @@ export function createAuthService(options = {}) {
   }
 
   return {
+    changePassword,
     completeLogin,
     createClearedSessionCookieHeader,
     createLoginChallenge,

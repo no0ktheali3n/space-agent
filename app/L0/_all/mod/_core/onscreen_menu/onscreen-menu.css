@@ -1,3 +1,7 @@
+body.app-page-router {
+  --onscreen-menu-shell-max-width: 56rem;
+}
+
 .onscreen-menu {
   position: fixed;
   inset: 0 0 auto 0;
@@ -26,9 +30,9 @@
   align-items: center;
   justify-content: space-between;
   gap: clamp(8px, 1.5vw, 14px);
-  flex: 0 1 56rem;
-  width: min(100%, 56rem);
-  max-width: 56rem;
+  flex: 0 1 var(--onscreen-menu-shell-max-width);
+  width: min(100%, var(--onscreen-menu-shell-max-width));
+  max-width: var(--onscreen-menu-shell-max-width);
   min-width: 0;
   height: calc(env(safe-area-inset-top, 0px) + 42px);
   min-height: calc(env(safe-area-inset-top, 0px) + 42px);
@@ -186,6 +190,10 @@
 }
 
 @media (max-width: 860px) {
+  body.app-page-router {
+    --onscreen-menu-shell-max-width: 48rem;
+  }
+
   .onscreen-menu-bar {
     padding:
       0
@@ -196,9 +204,9 @@
 
   .space-topbar.onscreen-menu-shell {
     gap: 8px;
-    flex-basis: 48rem;
-    width: min(100%, 48rem);
-    max-width: 48rem;
+    flex-basis: var(--onscreen-menu-shell-max-width);
+    width: min(100%, var(--onscreen-menu-shell-max-width));
+    max-width: var(--onscreen-menu-shell-max-width);
     height: calc(env(safe-area-inset-top, 0px) + 42px);
     min-height: calc(env(safe-area-inset-top, 0px) + 42px);
     padding: calc(env(safe-area-inset-top, 0px) + 3px) 8px 5px;

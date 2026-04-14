@@ -1,0 +1,20 @@
+created_at: 2026-04-14T00:00:00.000Z
+id: crypto-dashboard
+schema: spaces/v2
+updated_at: 2026-04-14T00:00:00.000Z
+title: Crypto Dashboard
+description: Live prices, BTC versus the S&P 500, and a crypto news feed.
+icon: currency_bitcoin
+icon_color: "#f6be63"
+layout_order:
+  - crypto-prices
+  - btc-vs-sp500
+  - crypto-news-feed
+sizes:
+  crypto-prices: 13x3
+  btc-vs-sp500: 8x6
+  crypto-news-feed: 5x6
+positions:
+  crypto-prices: "-6,-6"
+  btc-vs-sp500: "-6,-3"
+  crypto-news-feed: "2,-3"

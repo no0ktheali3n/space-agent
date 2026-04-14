@@ -43,9 +43,11 @@ These markers matter for prompt inspection, execution flows, and staged widget w
 Prompt construction includes two skill-related sections:
 
 - the top-level skill catalog built from readable `mod/*/*/ext/skills/*/SKILL.md` files
-- the `just loaded` block for readable skills anywhere under `ext/skills/**/SKILL.md` whose `metadata.just_loaded` condition currently passes
+- the auto-loaded skill context for readable skills anywhere under `ext/skills/**/SKILL.md` whose `metadata.loaded` condition currently passes
 
 Both sections are filtered by the current document's live `<x-skill-context>` tags before prompt assembly.
+
+Both `metadata.when` and `metadata.loaded` accept either `true` or a `{ tags: [...] }` condition. The shared helper reads those live tags every time it builds the catalog, resolves an explicit skill load, or assembles auto-loaded prompt context. Auto-loaded skills may not resolve to `history`, so their missing or invalid placement and explicit `history` all fall back to `system` unless they explicitly set `transient`.
 
 Top-level skill catalog rows use the compact shape:
 
@@ -65,6 +67,7 @@ Important execution rules:
 - if an execution block returns no result and prints no logs, the transcript says `execution returned no result and no console logs were printed`
 - multiline results are labeled with `result↓`
 - structured results should prefer YAML over JSON when the shared serializer can express them cleanly
+- `space.skills.load(...)` still returns the typed skill object, but `history` placement writes the skill body into history while `system` and `transient` placement only report `skill loaded to system message` or `skill loaded to transient area` and store the skill in runtime prompt context for later requests
 
 ## Failure And Retry Behavior
 

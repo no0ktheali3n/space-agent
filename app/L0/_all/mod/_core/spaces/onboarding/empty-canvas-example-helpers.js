@@ -1,5 +1,3 @@
-import { upsertWidgets as upsertWidgetsInStorage } from "/mod/_core/spaces/storage.js";
-
 const ONBOARDING_EXAMPLE_WIDGETS_BASE_URL = new URL(
   "/mod/_core/spaces/onboarding/examples/",
   globalThis.location?.href || "http://localhost/"
@@ -22,12 +20,8 @@ export function getRuntime() {
 export function getSpacesRuntime() {
   const runtime = getSpaceRuntime();
 
-  if (
-    !runtime.spaces ||
-    typeof runtime.spaces !== "object" ||
-    typeof runtime.spaces.upsertWidget !== "function"
-  ) {
-    throw new Error("space.spaces.upsertWidget(...) is not available.");
+  if (!runtime.spaces || typeof runtime.spaces !== "object") {
+    throw new Error("space.spaces runtime is not available.");
   }
 
   return runtime.spaces;
@@ -152,31 +146,23 @@ export async function installOnboardingExampleWidget(fileName, options = {}) {
   const repositionAfterInstall = upsertOptions.reposition !== false && refreshAfterInstall;
   const currentSpaceId = String(runtime.current?.id || "").trim();
   const targetSpaceId = String(upsertOptions.spaceId || currentSpaceId || "").trim();
-  const canReloadCurrentSpace =
-    currentSpaceId &&
-    targetSpaceId === currentSpaceId &&
-    typeof spacesRuntime.reloadCurrentSpace === "function";
 
   delete upsertOptions.refresh;
   delete upsertOptions.reposition;
 
+  if (typeof spacesRuntime.upsertWidget !== "function") {
+    throw new Error("space.spaces.upsertWidget(...) is not available.");
+  }
+
   const source = await loadOnboardingExampleWidgetSource(fileName);
-  const result = await spacesRuntime.upsertWidget({
+  return spacesRuntime.upsertWidget({
     ...upsertOptions,
-    ...(canReloadCurrentSpace && refreshAfterInstall ? { refresh: false } : {}),
+    ...(targetSpaceId ? { spaceId: targetSpaceId } : {}),
+    refresh: refreshAfterInstall,
+    resetCamera: Boolean(repositionAfterInstall && currentSpaceId && targetSpaceId === currentSpaceId),
     metadata: buildOnboardingExampleWidgetMetadata(upsertOptions),
     source
   });
-
-  if (canReloadCurrentSpace && refreshAfterInstall) {
-    await spacesRuntime.reloadCurrentSpace({
-      resetCamera: repositionAfterInstall
-    });
-  } else if (repositionAfterInstall && currentSpaceId && targetSpaceId === currentSpaceId) {
-    await repositionCurrentSpace();
-  }
-
-  return result;
 }
 
 export async function installOnboardingExampleWidgets(fileNames, options = {}) {
@@ -192,8 +178,14 @@ export async function installOnboardingExampleWidgets(fileNames, options = {}) {
   delete upsertOptions.refresh;
   delete upsertOptions.reposition;
 
-  const installResult = await upsertWidgetsInStorage({
+  if (typeof spacesRuntime.upsertWidgets !== "function") {
+    throw new Error("space.spaces.upsertWidgets(...) is not available.");
+  }
+
+  const installResult = await spacesRuntime.upsertWidgets({
     ...upsertOptions,
+    refresh: refreshAfterInstall,
+    resetCamera: Boolean(repositionAfterInstall && currentSpaceId && targetSpaceId === currentSpaceId),
     spaceId: targetSpaceId,
     widgets: widgetEntries.map((entry) => ({
       ...upsertOptions,
@@ -201,17 +193,6 @@ export async function installOnboardingExampleWidgets(fileNames, options = {}) {
       source: entry.source
     }))
   });
-
-  if (
-    refreshAfterInstall &&
-    currentSpaceId &&
-    targetSpaceId === currentSpaceId &&
-    typeof spacesRuntime.reloadCurrentSpace === "function"
-  ) {
-    await spacesRuntime.reloadCurrentSpace({
-      resetCamera: repositionAfterInstall
-    });
-  }
 
   return Array.isArray(installResult?.widgetResults) ? installResult.widgetResults : [];
 }

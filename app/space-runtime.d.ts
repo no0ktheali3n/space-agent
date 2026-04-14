@@ -389,6 +389,8 @@ type SpaceSpaceRecord = {
   minimizedWidgetIds: string[];
   path: string;
   specialInstructions: string;
+  thumbnailPath?: string;
+  thumbnailUrl?: string;
   title: string;
   updatedAt: string;
   widgetIds: string[];
@@ -407,6 +409,21 @@ type SpaceSpaceListEntry = SpaceSpaceRecord & {
   widgetCountLabel: string;
   widgetNames: string[];
   widgetPreviewNames: string[];
+};
+
+type SpaceWidgetWriteResult = {
+  space: SpaceSpaceRecord;
+  widgetId: string;
+  widgetPath: string;
+  widgetText: string;
+};
+
+type SpaceSpaceReloadOptions = {
+  animateEntering?: boolean;
+  captureThumbnail?: boolean;
+  preserveCamera?: boolean;
+  resetCamera?: boolean;
+  widgetId?: string;
 };
 
 type SpaceCurrentNamespace = {
@@ -497,7 +514,7 @@ type SpaceSpacesNamespace = {
   }): Promise<string>;
   readSpace(spaceId: string): Promise<SpaceSpaceRecord>;
   rearrangeWidgets(options: { spaceId?: string; widgetLayouts?: SpaceWidgetLayoutInput[]; widgets: SpaceWidgetLayoutInput[] }): Promise<SpaceSpaceRecord>;
-  reloadCurrentSpace(): Promise<SpaceSpaceRecord>;
+  reloadCurrentSpace(options?: SpaceSpaceReloadOptions): Promise<SpaceSpaceRecord>;
   reloadWidget(widgetIdOrOptions: string | { spaceId?: string; widgetId: string }): Promise<string>;
   removeWidget(options: { spaceId?: string; widgetId: string }): Promise<{ space: SpaceSpaceRecord; widgetId: string }>;
   removeWidgets(options: { spaceId?: string; widgetIds: string[] }): Promise<SpaceWidgetRemovalResult>;
@@ -522,13 +539,44 @@ type SpaceSpacesNamespace = {
   sizeToToken(size: SpaceWidgetSize): string;
   toggleWidgets(options: { spaceId?: string; widgetIds: string[] }): Promise<SpaceSpaceRecord>;
   upsertWidget(options: {
+    col?: number;
+    cols?: number;
     html?: string;
+    metadata?: Record<string, any>;
+    name?: string;
+    position?: Partial<SpaceWidgetPosition>;
+    refresh?: boolean;
+    renderer?: string;
+    resetCamera?: boolean;
+    row?: number;
+    rows?: number;
     size?: SpaceWidgetSize;
     source?: string;
     spaceId?: string;
     title?: string | null;
     widgetId?: string;
   }): Promise<string>;
+  upsertWidgets(options: {
+    refresh?: boolean;
+    resetCamera?: boolean;
+    spaceId?: string;
+    widgets: Array<{
+      col?: number;
+      cols?: number;
+      html?: string;
+      id?: string;
+      metadata?: Record<string, any>;
+      name?: string;
+      position?: Partial<SpaceWidgetPosition>;
+      renderer?: string;
+      row?: number;
+      rows?: number;
+      size?: SpaceWidgetSize;
+      source?: string;
+      title?: string | null;
+      widgetId?: string;
+    }>;
+  }): Promise<{ space: SpaceSpaceRecord; widgetIds: string[]; widgetResults: SpaceWidgetWriteResult[] }>;
   current: SpaceCurrentNamespace | null;
   currentId: string;
   widgetApiVersion: number;

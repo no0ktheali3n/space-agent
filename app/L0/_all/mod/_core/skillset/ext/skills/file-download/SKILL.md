@@ -4,7 +4,7 @@ description: Download app files, generated blobs, or external URLs
 metadata:
   when:
     tags:
-      - agent
+      - onscreen
 ---
 
 Use this skill when the user asks how to let the browser download a file, whether it lives in the app filesystem, is generated at runtime, or comes from an external URL.

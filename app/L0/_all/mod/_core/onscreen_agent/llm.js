@@ -461,14 +461,26 @@ export const buildOnscreenAgentSystemPromptSections = globalThis.space.extend(
   async function buildOnscreenAgentSystemPromptSections(context = {}) {
     if (shouldUseLocalPromptProfile(context)) {
       const customPrompt = formatCustomUserInstructions(context.systemPrompt);
+      const skillPromptContext = await skills.buildOnscreenSkillPromptContext({
+        includeAutoLoaded: false,
+        includeCatalog: false,
+        includeRuntimeLoaded: true
+      });
 
       return {
         ...context,
-        justLoadedSkillsSection: "",
+        autoLoadedSkillsSection: "",
         basePrompt: LOCAL_ONSCREEN_AGENT_SYSTEM_PROMPT,
         customPrompt,
+        historySkillMessages: [],
+        loadedSkillsSection: skillPromptContext.loadedSkillsSection,
+        loadedTransientSections: skillPromptContext.loadedTransientSections,
         localProfile: true,
-        sections: [LOCAL_ONSCREEN_AGENT_SYSTEM_PROMPT, customPrompt].filter(Boolean),
+        sections: [
+          LOCAL_ONSCREEN_AGENT_SYSTEM_PROMPT,
+          customPrompt,
+          skillPromptContext.loadedSkillsSection
+        ].filter(Boolean),
         skillsSection: ""
       };
     }
@@ -477,15 +489,32 @@ export const buildOnscreenAgentSystemPromptSections = globalThis.space.extend(
       context.defaultSystemPrompt || (await fetchDefaultOnscreenAgentSystemPrompt())
     );
     const customPrompt = formatCustomUserInstructions(context.systemPrompt);
-    const skillsSection = await skills.buildOnscreenSkillsPromptSection();
-    const justLoadedSkillsSection = await skills.buildOnscreenJustLoadedSkillsPromptSection();
+    const skillPromptContext = await skills.buildOnscreenSkillPromptContext();
+    const skillsSection = skillPromptContext.catalogSection;
+    const autoLoadedSkillsSection = skillPromptContext.autoLoadedSkillsSection;
 
     return {
       ...context,
-      justLoadedSkillsSection,
+      autoLoadedSkillsSection,
       basePrompt,
       customPrompt,
-      sections: [basePrompt, customPrompt, skillsSection, justLoadedSkillsSection].filter(Boolean),
+      historySkillMessages: skillPromptContext.autoLoadedHistoryMessages,
+      loadedSkillsSection: skillPromptContext.loadedSkillsSection,
+      loadedTransientSections: [
+        ...(Array.isArray(skillPromptContext.autoLoadedTransientSections)
+          ? skillPromptContext.autoLoadedTransientSections
+          : []),
+        ...(Array.isArray(skillPromptContext.loadedTransientSections)
+          ? skillPromptContext.loadedTransientSections
+          : [])
+      ],
+      sections: [
+        basePrompt,
+        customPrompt,
+        skillsSection,
+        autoLoadedSkillsSection,
+        skillPromptContext.loadedSkillsSection
+      ].filter(Boolean),
       skillsSection
     };
   }
@@ -545,10 +574,14 @@ export const buildOnscreenAgentPromptInput = globalThis.space.extend(
       options: context.options,
       systemPrompt: context.systemPrompt
     });
+    const historySkillMessages = Array.isArray(systemPromptContext?.historySkillMessages)
+      ? systemPromptContext.historySkillMessages
+      : [];
+    const historyMessagesForPrompt = [...historySkillMessages, ...(Array.isArray(historyMessagesInput) ? historyMessagesInput : [])];
     const runtimeSystemPrompt = normalizePromptSections(systemPromptContext?.sections).join("\n\n");
     const exampleContext = await buildOnscreenAgentExampleMessages({
       ...context,
-      historyMessages: historyMessagesInput,
+      historyMessages: historyMessagesForPrompt,
       runtimeSystemPrompt,
       systemPrompt: runtimeSystemPrompt,
       systemPromptContext
@@ -559,7 +592,7 @@ export const buildOnscreenAgentPromptInput = globalThis.space.extend(
     const historyContext = await buildOnscreenAgentHistoryMessages({
       ...context,
       exampleEntries: clonePreparedPromptEntries(exampleEntries),
-      historyMessages: historyMessagesInput,
+      historyMessages: historyMessagesForPrompt,
       runtimeSystemPrompt,
       systemPrompt: runtimeSystemPrompt,
       systemPromptContext
@@ -576,7 +609,12 @@ export const buildOnscreenAgentPromptInput = globalThis.space.extend(
       exampleEntries: clonePreparedPromptEntries(exampleEntries),
       historyEntries: clonePreparedPromptEntries(historyEntries),
       requestEntries: [...clonePreparedPromptEntries(exampleEntries), ...clonePreparedPromptEntries(historyEntries)],
-      sections: collectRuntimeTransientSections(context),
+      sections: [
+        ...collectRuntimeTransientSections(context),
+        ...(Array.isArray(systemPromptContext?.loadedTransientSections)
+          ? systemPromptContext.loadedTransientSections
+          : [])
+      ],
       runtimeSystemPrompt,
       systemPrompt: runtimeSystemPrompt,
       systemPromptContext

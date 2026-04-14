@@ -24,11 +24,12 @@ Documentation is top priority for this area. After any change under `app/` or an
 Current module-local docs in the app tree:
 
 - `app/L0/_all/mod/_core/agent/AGENTS.md`
+- `app/L0/_all/mod/_core/user/AGENTS.md`
 - `app/L0/_all/mod/_core/dashboard/AGENTS.md`
 - `app/L0/_all/mod/_core/dashboard_welcome/AGENTS.md`
 - `app/L0/_all/mod/_core/documentation/AGENTS.md`
 - `app/L0/_all/mod/_core/framework/AGENTS.md`
-- `app/L0/_all/mod/_core/pages/AGENTS.md`
+- `app/L0/_all/mod/_core/panels/AGENTS.md`
 - `app/L0/_all/mod/_core/login_hooks/AGENTS.md`
 - `app/L0/_all/mod/_core/promptinclude/AGENTS.md`
 - `app/L0/_all/mod/_core/router/AGENTS.md`
@@ -69,7 +70,7 @@ Default module-doc section order:
 
 Required contract coverage for app docs:
 
-- entry points and extension seams: page anchors, routed views, `ext/html/` and `ext/js/` files, module-owned extension metadata folders such as `ext/pages/`, exported runtime namespaces, iframe boundaries, and route mounts
+- entry points and extension seams: page anchors, routed views, `ext/html/` and `ext/js/` files, module-owned extension metadata folders such as `ext/panels/`, exported runtime namespaces, iframe boundaries, and route mounts
 - state and persistence: stores, `init()` or `mount()` or `unmount()` lifecycle, session or local storage keys, app-file paths, backend endpoints, and background async work
 - component and DOM ownership: which HTML files mount which JS or store files, which components are thin adapters, and which DOM refs or `x-ref` inputs are required
 - visual and style ownership: which CSS is shared versus local, which `_core/visual` primitives are reused, and any mirrored public-shell assets or visual constraints
@@ -111,12 +112,13 @@ Current major first-party modules under `app/L0/_all/mod/_core/`:
 - `framework/`: frontend bootstrap, runtime primitives, component loader, extension system, shared utilities
 - `login_hooks/`: headless authenticated-bootstrap lifecycle hooks for first-login and same-origin `/login` arrival events, with a client-owned `~/meta/login_hooks.json` marker and feature-owned onboarding hooks such as the spaces module's first-login `Big Bang` onboarding-space bootstrap
 - `visual/`: shared visual language, canvas, chrome, buttons, dialog helpers, and conversation rendering primitives
-- `router/`: root routed shell for the authenticated app; route-level frame width, height or scroll policy, shared shell-owned overlay-clearance budgets, and other shell-owned layout overrides belong here rather than in feature modules, but routed pages own their own content padding
+- `router/`: root routed shell for the authenticated app; route-level frame width, height or scroll policy, the shared shell-owned top-clearance budget, and other shell-owned layout overrides belong here rather than in feature modules, while routed pages own their own vertical spacing, any route-specific bottom breathing room, and local card padding but should avoid shell-compensation horizontal gutters at the route root
 - `admin/`: firmware-backed admin shell and panels
-- `agent/`: routed first-party agent information and user-local personality include editor, kept self-contained inside the module and advertised to the dashboard through `ext/pages/agent.yaml`
-- `file_explorer/`: reusable app-file browser component, routed Files page, dashboard manifest, and routed header-menu item
+- `agent/`: routed first-party agent information and user-local personality include editor, kept self-contained inside the module and advertised to the dashboard through `ext/panels/agent.yaml`
+- `user/`: routed first-party account settings page that edits `~/user.yaml` directly for `full_name`, keeps password rotation server-owned through `password_change`, and advertises itself through `ext/panels/user.yaml`
+- `file_explorer/`: reusable app-file browser component, routed Files page, dashboard panel manifest, and routed header-menu item
 - `documentation/`: supplemental agent-facing documentation docs, the focused-read documentation helper, and the documentation skill that carries the top-level docs map
-- `pages/`: headless page-manifest discovery plus the dashboard-injected pages section, backed by permission-aware `ext/pages/*.yaml` metadata loaded through the shared extension resolver
+- `panels/`: headless panel-manifest discovery plus the dashboard-injected Panels section, backed by permission-aware `ext/panels/*.yaml` metadata loaded through the shared extension resolver
 - `promptinclude/`: headless promptinclude discovery and onscreen-agent prompt injection for readable `*.system.include.md` and `*.transient.include.md` app files
 - `onscreen_agent/`: floating routed overlay agent and the first-party user-facing chat runtime
 - `onscreen_menu/`: reserved routed shell header bar, Home shortcut to the empty default route, left and right shell-control seams, and `_core/onscreen_menu/items` dropdown action seam
@@ -125,7 +127,7 @@ Current major first-party modules under `app/L0/_all/mod/_core/`:
 - `webllm/`: unlisted routed browser-only WebLLM test surface with a module-local worker, vendored browser runtime, compact searchable prebuilt model loading, expert-only compiled custom model loading, and simple throughput reporting
 - `huggingface/`: dashboard-listed Local LLM page backed by a routed browser-only Hugging Face Transformers.js test surface, with a module-local singleton runtime manager and worker, direct Hub model loading, a vendored local browser runtime for upstream testing, shared saved-model state and browser-wide last-loaded selection reused by the admin and onscreen agents in the same browser context, and simple throughput reporting
 - `time_travel/`: routed writable-layer history surface that defaults to the authenticated user's local Git commits, can switch to write-accessible `L1` or `L2` history repositories through a permission-aware picker, filters by changed file, opens per-file diffs, and calls the server rollback or revert APIs after explicit confirmation
-- `dashboard/`, `dashboard_welcome/`, and `spaces/`: current routed feature surfaces and dashboard-injected surfaces under the router; `_core/dashboard` also injects a route-owned control cluster into `[id="_core/onscreen_menu/bar_start"]` through the framework's delayed-target `x-inject` helper and exposes ordered dashboard-local topbar seams so feature modules can contribute dashboard-only header actions without hardcoding them into the shell
+- `dashboard/`, `dashboard_welcome/`, and `spaces/`: current routed feature surfaces and dashboard-injected surfaces under the router; `_core/dashboard` also injects a route-owned control cluster into `[id="_core/onscreen_menu/bar_start"]` through the framework's delayed-target `x-inject` helper, exposes ordered dashboard-local topbar seams so feature modules can contribute dashboard-only header actions without hardcoding them into the shell, and owns the dashboard route's extra bottom breathing room under the chat overlay
 
 ## Layer Rules And Module Model
 
@@ -143,7 +145,7 @@ Current major first-party modules under `app/L0/_all/mod/_core/`:
 - browser-facing code and assets should normally be delivered through `/mod/...`
 - group-scoped onscreen skill packs may live under readable layer roots such as `L0/_admin/mod/.../ext/skills/`; visibility follows the same readable-root permission model as app-file discovery, and each skill file is named `SKILL.md`
 - when a skill needs reusable browser logic, keep that logic in a small module-local JS file and import it from the skill via a stable `/mod/<author>/<repo>/...` path instead of pasting long scripts into `SKILL.md`
-- skill files may use `metadata.when.tags` to require live page-owned skill-context tags before they become catalog-loadable, and may use `metadata.just_loaded` as either `true` or another `{ tags: [...] }` condition to auto-inject their body into the prompt after the catalog
+- skill files may use `metadata.when` as either `true` or a `{ tags: [...] }` condition to require live page-owned skill-context tags before they become catalog-loadable, may use `metadata.loaded` as either `true` or another `{ tags: [...] }` condition to auto-inject their body into prompt context after the catalog, and may use `metadata.placement` to route that auto-included or explicitly loaded skill body into the system prompt, transient block, or standard conversation history; ordinary skills still default missing or invalid placement to `history`, but auto-loaded skills may not resolve to history and therefore fall back to `system` unless they explicitly set `transient`
 - when a stable frontend contract or workflow changes, update the relevant narrative docs under `app/L0/_all/mod/_core/documentation/docs/` alongside the owning `AGENTS.md` files
 - page shells may clamp module and extension resolution with `meta[name="space-max-layer"]`; the current admin shell sets `0`
 - page shells may also receive injected `meta[name="space-config"]` tags for runtime parameters marked `frontend_exposed`
@@ -208,15 +210,15 @@ JS extension hooks:
 Module-owned extension metadata:
 
 - modules may also ship lightweight metadata manifests under other `ext/` folders when that data should follow the same readable-layer permissions and same-path override rules as HTML and JS extensions
-- the current first-party example is `ext/pages/*.yaml`, which the dashboard page index discovers through `/api/extensions_load`
+- the current first-party example is `ext/panels/*.yaml`, which the dashboard panel index discovers through `/api/extensions_load`
 - keep those metadata manifests small and display-oriented; they are extension-resolved module assets, not a second general-purpose storage system
 
 Skill-context tags:
 
 - modules may export live prompt-skill context through hidden `<x-skill-context>` elements anywhere in mounted DOM
-- skill discovery unions the current document's `tag` and `tags` values from those elements each time a skill catalog, just-loaded block, or explicit skill load is resolved
+- skill discovery unions the current document's `tag` and `tags` values from those elements each time a skill catalog, auto-loaded block, or explicit skill load is resolved
 - modules own the actual tag names they emit; the framework does not reserve a hardcoded route or surface tag registry
-- current first-party examples are `agent` from the overlay, `admin` from the admin shell, router-owned tags such as `route:<current-path>`, and feature-owned state tags such as `space:open`
+- current first-party examples are `onscreen` from the overlay, `admin` from the admin shell, router-owned tags such as `route:<current-path>`, and feature-owned state tags such as `space:open`
 - Alpine attribute binding on `<x-skill-context>` is the normal way to make tags follow live routed or store state
 
 Resolution and overrides:
@@ -263,7 +265,7 @@ Runtime guidance:
 - use `space.api` for authenticated backend calls
 - use `space.api.folderDownloadUrl(...)` when a folder download should stay as a browser attachment instead of fetching the archive blob into frontend memory
 - first-party framework, shell, skill-helper, and bundled demo assets required for normal app use must be local `/mod/...` files, server page assets, or inline code; do not load required scripts, styles, fonts, images, or other framework assets from CDNs
-- keep feature-owned runtime namespaces under `space` explicit and narrow; `_core/spaces` owns `space.current` for current-space widget authoring, compact widget catalog discovery, widget-definition reads that expose plain metadata plus numbered renderer lines directly in the response, live rendered-widget HTML inspection through `seeWidget(...)`, widget patch helpers, explicit widget reload checks, camera-only viewport reposition, compact widget write results, post-write transient envelopes that carry both stripped rendered HTML and numbered source readback, live widget-state descriptors including render health, and batch layout or toggle or removal helpers plus `space.spaces` for persisted space CRUD, loaded-space collections, lower-level widget or folder-copy duplication or storage helpers, the matching reload helper that accepts `resetCamera` for single-pass onboarding example installs plus the separate current-space viewport reposition helper for camera-only rescroll, and spaces-owned prompt context injection that is limited to current-space agent instructions while widget workflow guidance and catalog discovery stay tool-driven, `_core/onscreen_agent` owns `space.onscreenAgent` for overlay display control plus both normal prompt submission and guarded preset-button prompt submission, and agent surfaces publish the active thread snapshot at `space.chat`, including the non-persisted `space.chat.transient` registry for mutable prompt context blocks plus a prepared-prompt contract where system prompt text comes first, optional example user or assistant messages follow before live history, real human user turns are framed as `_____user`, framework-generated follow-up turns are framed as `_____framework`, and mutable runtime context is emitted as a separate trailing `_____transient` message
+- keep feature-owned runtime namespaces under `space` explicit and narrow; `_core/spaces` owns `space.current` for current-space widget authoring, compact widget catalog discovery, widget-definition reads that expose plain metadata plus numbered renderer lines directly in the response, live rendered-widget HTML inspection through `seeWidget(...)`, widget patch helpers, explicit widget reload checks, camera-only viewport reposition, compact widget write results, post-write transient envelopes that carry both stripped rendered HTML and numbered source readback, live widget-state descriptors including render health, and batch layout or toggle or removal helpers plus `space.spaces` for persisted space CRUD, loaded-space collections, lower-level widget or folder-copy duplication or storage helpers, the matching reload helper that accepts `resetCamera` for single-pass onboarding example installs plus the separate current-space viewport reposition helper for camera-only rescroll, and spaces-owned prompt context injection that is limited to current-space agent instructions while widget workflow guidance and catalog discovery stay tool-driven, `_core/onscreen_agent` owns `space.onscreenAgent` for overlay display control plus both normal prompt submission and guarded preset-button prompt submission, and agent surfaces publish the active thread snapshot at `space.chat`, including the non-persisted `space.chat.transient` registry for mutable prompt context blocks, the non-persisted `space.chat.skills` registry for explicitly loaded system or transient skills, and a prepared-prompt contract where system prompt text comes first, optional example user or assistant messages follow before live history, real human user turns are framed as `_____user`, framework-generated follow-up turns are framed as `_____framework`, and mutable runtime context is emitted as a separate trailing `_____transient` message
 - shared visual helpers may publish small reusable UI entry points under `space.visual`; the current shared selector contract is `_core/visual/icons/icon-color-selector.js`, which registers `space.visual.openIconColorSelector(options)` after that module is imported
 - use `space.api.userSelfInfo()` as the canonical browser-side identity snapshot; it returns `{ username, fullName, groups, managedGroups }`, and frontend code should derive writable app roots from that data plus the standard layer rules
 - use `space.config` for frontend reads of backend parameters that were explicitly marked `frontend_exposed`
@@ -309,7 +311,7 @@ Detailed visual subsystem rules now live in `app/L0/_all/mod/_core/visual/AGENTS
 - `dashboard_welcome/` owns the dismissible dashboard welcome panel and bundled demo spaces; see `app/L0/_all/mod/_core/dashboard_welcome/AGENTS.md`
 - `documentation/` owns the supplemental documentation tree, the documentation skill that carries its compact docs map, and the focused docs helper used by the onscreen agent; see `app/L0/_all/mod/_core/documentation/AGENTS.md`
 - `agent/` owns the routed agent information page, its local avatar-card styling, and the user-local personality include editor for `~/conf/personality.system.include.md`; see `app/L0/_all/mod/_core/agent/AGENTS.md`
-- `file_explorer/` owns the reusable app-file browser component, routed Files page, dashboard page manifest, and routed header-menu item; see `app/L0/_all/mod/_core/file_explorer/AGENTS.md`
+- `file_explorer/` owns the reusable app-file browser component, routed Files page, dashboard panel manifest, and routed header-menu item; see `app/L0/_all/mod/_core/file_explorer/AGENTS.md`
 - `promptinclude/` owns readable prompt-include discovery through `file_paths` plus the onscreen-agent hooks that inject stable prompt-include instructions into the system prompt, append readable `*.system.include.md` file bodies there, and inject discovered `*.transient.include.md` file bodies into transient context; see `app/L0/_all/mod/_core/promptinclude/AGENTS.md`
 - `visual/` owns the shared visual system, reusable presentation primitives, and shared icon-selection modal helpers; see `app/L0/_all/mod/_core/visual/AGENTS.md`
 - `webllm/` owns the unlisted routed WebLLM browser-inference test surface, its route-local worker, and its vendored WebLLM browser runtime; see `app/L0/_all/mod/_core/webllm/AGENTS.md`
@@ -322,7 +324,7 @@ Detailed visual subsystem rules now live in `app/L0/_all/mod/_core/visual/AGENTS
 - `onscreen_menu/` owns the routed shell menu extension and feature-owned item seam; see `app/L0/_all/mod/_core/onscreen_menu/AGENTS.md`
 - `time_travel/` owns the routed Time Travel page for paginated writable-layer history, repository selection, file filters, diffs, previewed travel, and revert actions; see `app/L0/_all/mod/_core/time_travel/AGENTS.md`
 - `spaces/` owns the routed spaces canvas, first-login onboarding-space template bootstrap, empty-canvas prompt, widget SDK and widget-size ceilings, the default spaces camera contract that opens occupied cells horizontally centered with the top-most occupied row on the first visible grid row below the fixed shell bar with `0.5em` breathing room and only clamps panning once an outer occupied cell would leave view, and persisted centered-coordinate space runtime plus dashboard-facing space metadata such as title, icon, color, and agent instructions; see `app/L0/_all/mod/_core/spaces/AGENTS.md`
-- `pages/` owns `ext/pages/*.yaml` manifest discovery and the dashboard-facing secondary panels row; see `app/L0/_all/mod/_core/pages/AGENTS.md`
+- `panels/` owns `ext/panels/*.yaml` manifest discovery and the dashboard-facing secondary panels row; see `app/L0/_all/mod/_core/panels/AGENTS.md`
 
 ## Guidance
 

@@ -139,18 +139,66 @@ export function extractCustomAdminSystemPrompt(storedPrompt = "", defaultSystemP
   return stripDefaultPromptPrefix(storedPrompt, defaultSystemPrompt);
 }
 
-export async function buildRuntimeAdminSystemPrompt(systemPrompt = "", options = {}) {
+export async function buildAdminPromptContext(systemPrompt = "", options = {}) {
   if (options.localProfile === true) {
     const customPrompt = formatCustomUserInstructions(systemPrompt);
-    return [LOCAL_ADMIN_SYSTEM_PROMPT, customPrompt].filter(Boolean).join("\n\n");
+    const skillPromptContext = await skills.buildAdminSkillPromptContext({
+      includeAutoLoaded: false,
+      includeCatalog: false,
+      includeRuntimeLoaded: true
+    });
+    const sections = [
+      LOCAL_ADMIN_SYSTEM_PROMPT,
+      customPrompt,
+      skillPromptContext.loadedSkillsSection
+    ].filter(Boolean);
+
+    return {
+      historySkillMessages: [],
+      loadedSkillsSection: skillPromptContext.loadedSkillsSection,
+      skillsSection: "",
+      systemPrompt: sections.join("\n\n"),
+      systemPromptSections: sections,
+      transientSections: Array.isArray(skillPromptContext.loadedTransientSections)
+        ? skillPromptContext.loadedTransientSections
+        : []
+    };
   }
 
   const basePrompt = normalizeSystemPrompt(
     options.defaultSystemPrompt || (await fetchDefaultAdminSystemPrompt())
   );
   const customPrompt = formatCustomUserInstructions(systemPrompt);
-  const skillsSection = await skills.buildAdminSkillsPromptSection();
-  const justLoadedSkillsSection = await skills.buildAdminJustLoadedSkillsPromptSection();
+  const skillPromptContext = await skills.buildAdminSkillPromptContext();
+  const sections = [
+    basePrompt,
+    customPrompt,
+    skillPromptContext.catalogSection,
+    skillPromptContext.autoLoadedSkillsSection,
+    skillPromptContext.loadedSkillsSection
+  ].filter(Boolean);
 
-  return [basePrompt, customPrompt, skillsSection, justLoadedSkillsSection].filter(Boolean).join("\n\n");
+  return {
+    historySkillMessages: Array.isArray(skillPromptContext.autoLoadedHistoryMessages)
+      ? skillPromptContext.autoLoadedHistoryMessages
+      : [],
+    autoLoadedSkillsSection: skillPromptContext.autoLoadedSkillsSection,
+    loadedSkillsSection: skillPromptContext.loadedSkillsSection,
+    skillsSection: skillPromptContext.catalogSection,
+    systemPrompt: sections.join("\n\n"),
+    systemPromptSections: sections,
+    transientSections: [
+      ...(Array.isArray(skillPromptContext.autoLoadedTransientSections)
+        ? skillPromptContext.autoLoadedTransientSections
+        : []),
+      ...(Array.isArray(skillPromptContext.loadedTransientSections)
+        ? skillPromptContext.loadedTransientSections
+        : [])
+    ]
+  };
+}
+
+export async function buildRuntimeAdminSystemPrompt(systemPrompt = "", options = {}) {
+  const promptContext = await buildAdminPromptContext(systemPrompt, options);
+  return promptContext.systemPrompt;
 }

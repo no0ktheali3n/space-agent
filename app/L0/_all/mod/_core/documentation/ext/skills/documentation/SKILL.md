@@ -15,6 +15,7 @@ workflow
 - Use one focused `read("path/to/file.md")` call instead of loading many large docs blindly
 - Treat `/README.md` as the public product source of truth for the project pitch, quick starts, release links, community links, and DeepWiki discovery
 - After orientation, confirm the concrete contract in the owning `AGENTS.md` file and then inspect code when needed
+- For dashboard panel creation, panel manifests, or panel-navigation helpers, start with `app/modules-and-extensions.md`
 - Keep the repo's frontend-first rule in mind while reading: backend docs explain constraints and existing contracts, not default permission to edit `server/`
 - If the change appears to require backend work and the user did not explicitly ask for backend edits, ask for permission and explain the security, integrity, or stability reason before changing backend files
 - When you change a stable contract or workflow, update both the relevant `AGENTS.md` files and the matching docs in `/mod/_core/documentation/docs/`
@@ -26,7 +27,7 @@ recommended starting points
 - documentation rules: `architecture/documentation-system.md`
 - frontend runtime and layers: `app/runtime-and-layers.md`
 - admin agent runtime: `app/admin-agent-runtime.md`
-- modules, routing, or extensions: `app/modules-and-extensions.md`
+- modules, routing, extensions, or dashboard panels: `app/modules-and-extensions.md`
 - browser-side Hugging Face testing: `app/huggingface-browser-runtime.md`
 - browser-side WebLLM testing: `app/webllm-browser-runtime.md`
 - spaces and widgets: `app/spaces-and-widgets.md`
@@ -47,7 +48,7 @@ architecture/desktop-host-and-packaging.md|Desktop Host And Packaging|Electron h
 architecture/documentation-system.md|Documentation System|How `AGENTS.md`, the documentation module, and code fit together, plus update rules.
 app/runtime-and-layers.md|App Runtime And Layers|Frontend boot flow, `space` runtime namespaces, entry shells, and `L0/L1/L2` rules.
 app/admin-agent-runtime.md|Admin Agent Runtime|Admin chat ownership, config persistence, shared execution loop, and API-versus-local-Hugging-Face transport switching.
-app/modules-and-extensions.md|Modules And Extensions|`/mod/...` delivery, router path resolution, `ext/html`, `ext/js`, and `<x-component>` behavior.
+app/modules-and-extensions.md|Modules And Extensions|`/mod/...` delivery, router path resolution, dashboard panel manifests, `ext/html`, `ext/js`, and `<x-component>` behavior.
 app/huggingface-browser-runtime.md|Hugging Face Browser Runtime|The routed Transformers.js test surface, its worker split, direct Hub model loading contract, and throughput metrics.
 app/webllm-browser-runtime.md|WebLLM Browser Runtime|The routed WebLLM test surface, its worker split, model-loading modes, and throughput metrics contract.
 app/spaces-and-widgets.md|Spaces And Widgets|Space storage, widget renderer contracts, widget-shell defaults, and the main `space.current` / `space.spaces` helpers.

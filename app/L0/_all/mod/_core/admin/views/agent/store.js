@@ -142,8 +142,8 @@ function formatPromptHistoryText(messages) {
     .join("\n\n");
 }
 
-function buildPromptHistoryText(systemPrompt, history) {
-  return formatPromptHistoryText(agentApi.buildAdminAgentPromptMessages(systemPrompt, history));
+function buildPromptHistoryText(systemPromptOrContext, history) {
+  return formatPromptHistoryText(agentApi.buildAdminAgentPromptMessages(systemPromptOrContext, history));
 }
 
 const MAX_PROTOCOL_RETRY_COUNT = 2;
@@ -323,6 +323,7 @@ const model = {
   streamingRenderFrame: 0,
   systemPrompt: "",
   systemPromptDraft: "",
+  runtimePromptContext: null,
   runtimeSystemPrompt: "",
   huggingface: createEmptyHuggingFaceState(),
   huggingfaceManagerUnsubscribe: null,
@@ -954,10 +955,12 @@ const model = {
   },
 
   async refreshRuntimeSystemPrompt() {
-    this.runtimeSystemPrompt = await prompt.buildRuntimeAdminSystemPrompt(this.systemPrompt, {
+    this.runtimePromptContext = await prompt.buildAdminPromptContext(this.systemPrompt, {
       defaultSystemPrompt: this.defaultSystemPrompt,
       localProfile: config.normalizeAdminChatLlmProvider(this.settings.provider) === config.ADMIN_CHAT_LLM_PROVIDER.LOCAL
     });
+    this.runtimeSystemPrompt =
+      typeof this.runtimePromptContext?.systemPrompt === "string" ? this.runtimePromptContext.systemPrompt : "";
     this.refreshHistoryMetrics();
     return this.runtimeSystemPrompt;
   },
@@ -978,7 +981,7 @@ const model = {
 
   refreshHistoryMetrics() {
     this.historyText = buildPromptHistoryText("", this.history);
-    this.promptHistoryText = buildPromptHistoryText(this.runtimeSystemPrompt, this.history);
+    this.promptHistoryText = buildPromptHistoryText(this.runtimePromptContext || this.runtimeSystemPrompt, this.history);
     this.historyTokenCount = countTextTokens(this.promptHistoryText);
   },
 
@@ -1593,7 +1596,10 @@ const model = {
       const runtimeSystemPrompt = await this.refreshRuntimeSystemPrompt();
 
       this.promptHistoryTitle = "Full Prompt History";
-      this.promptHistoryMessages = agentApi.buildAdminAgentPromptMessages(runtimeSystemPrompt, this.history);
+      this.promptHistoryMessages = agentApi.buildAdminAgentPromptMessages(
+        this.runtimePromptContext || runtimeSystemPrompt,
+        this.history
+      );
       this.promptHistoryMode = "text";
       openDialog(this.refs.historyDialog);
     } catch (error) {
@@ -1687,10 +1693,15 @@ const model = {
       this.chatRuntime.attachments.clear();
     }
 
+    if (this.chatRuntime?.skills?.clear) {
+      this.chatRuntime.skills.clear();
+    }
+
     if (this.executionContext) {
       this.executionContext.reset();
     }
 
+    await this.refreshRuntimeSystemPrompt();
     void huggingfaceManager.resetChat().catch(() => {});
 
     this.render();
@@ -1723,6 +1734,7 @@ const model = {
 
     try {
       responseMeta = await agentApi.streamAdminAgentCompletion({
+        promptContext: this.runtimePromptContext,
         settings: this.settings,
         systemPrompt: runtimeSystemPrompt,
         messages: requestMessages,

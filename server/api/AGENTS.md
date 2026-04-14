@@ -97,6 +97,7 @@ Runtime and identity endpoints:
 - `extensions_load`
 - `debug_path_index`
 - `password_generate`
+- `password_change`
 - `user_self_info`
 
 Important notes:
@@ -104,8 +105,9 @@ Important notes:
 - `extensions_load` resolves module-owned `ext/...` request paths through the shared layered override system and supports grouped request batches
 - `extensions_load` should read the replicated shared-state shards for the caller's visible module owners rather than scanning watchdog paths directly
 - `debug_path_index` is an authenticated debugging endpoint for clustered-runtime verification; it returns filtered local `path_index` entries plus a stable hash so tests can compare worker replicas without walking the filesystem directly
+- `password_change` is an authenticated account endpoint for the current user only; it validates the current password through the auth service, rewrites the backend-sealed verifier, clears stored sessions, and clears the current browser cookie so the frontend can return to `/login`
 - frontend HTML anchors and JS hooks resolve through `ext/html/...` and `ext/js/...` request paths respectively
-- frontend modules may also enumerate other extension-resolved metadata assets through this endpoint when those files should honor readable-layer permissions plus same-path layered overrides; the current first-party example is `ext/pages/*.yaml`
+- frontend modules may also enumerate other extension-resolved metadata assets through this endpoint when those files should honor readable-layer permissions plus same-path layered overrides; the current first-party example is `ext/panels/*.yaml`
 - `user_self_info` returns the authenticated user's derived identity only: `{ username, fullName, groups, managedGroups }`
 - `password_generate` is an authenticated utility endpoint that returns the backend-sealed `password.json` payload and should stay narrow
 

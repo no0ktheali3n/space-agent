@@ -2,10 +2,11 @@
 name: Spaces Widgets
 description: Create, patch, move, and remove widgets
 metadata:
+  placement: system
   when:
     tags:
       - route:spaces
-  just_loaded:
+  loaded:
     tags:
       - space:open
 ---
@@ -30,7 +31,7 @@ Current space:
 
 Cross-space:
 - listSpaces(), createSpace({ title }), openSpace(id), removeSpace(id)
-- repositionCurrentSpace(options?), reloadCurrentSpace(options?), upsertWidget(...), patchWidget(...), removeWidgets(...), removeAllWidgets(...)
+- repositionCurrentSpace(options?), reloadCurrentSpace(options?), upsertWidget(...), upsertWidgets(...), patchWidget(...), removeWidgets(...), removeAllWidgets(...)
 
 catalog and readback
 - Prefer space.current.* when already inside a space

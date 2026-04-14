@@ -126,14 +126,22 @@ function normalizeSpaceEntry(entry = {}) {
   const widgetPreviewNames = normalizeWidgetPreviewNames(entry);
   const totalWidgetNames = Array.isArray(entry?.widgetNames) ? entry.widgetNames.length : widgetPreviewNames.length;
   const displayTitle = getSpaceDisplayTitle(entry);
+  const thumbnailUrl = String(entry?.thumbnailUrl || "").trim();
 
   return {
     ...entry,
     displayIcon: getSpaceDisplayIcon(entry),
     displayIconColor: getSpaceDisplayIconColor(entry),
     displayTitle,
+    hasThumbnail: Boolean(thumbnailUrl),
     localeUpdatedAt: String(entry?.updatedAtLabel || "").trim() || "Unknown update time",
     remainingWidgetCount: Math.max(0, totalWidgetNames - widgetPreviewNames.length),
+    thumbnailStyle: thumbnailUrl
+      ? {
+          backgroundImage: `url("${thumbnailUrl}")`
+        }
+      : null,
+    thumbnailUrl,
     widgetPreviewNames
   };
 }
@@ -326,8 +334,8 @@ globalThis.spacesDashboardLauncher = function spacesDashboardLauncher() {
       this.duplicatingSpaceId = normalizedSpaceId;
 
       try {
-        const duplicatedSpace = await globalThis.space.spaces.duplicateSpace(normalizedSpaceId);
-        this.entries = [normalizeSpaceEntry(duplicatedSpace), ...this.entries];
+        await globalThis.space.spaces.duplicateSpace(normalizedSpaceId);
+        await this.loadSpaces();
         showToast(`Duplicated "${label}".`, {
           tone: "success"
         });

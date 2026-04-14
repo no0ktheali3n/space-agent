@@ -111,6 +111,86 @@ function normalizeConversationMessage(message) {
   };
 }
 
+function normalizeTransientSection(section, fallbackKey = "") {
+  const keySource = section?.key ?? fallbackKey;
+  const key = typeof keySource === "string" ? keySource.trim() : "";
+  const content = typeof section?.content === "string" ? section.content.trim() : "";
+  const headingSource = section?.heading ?? section?.title ?? section?.label ?? key;
+  const heading = typeof headingSource === "string" ? headingSource.trim() : "";
+  const order = Number.isFinite(section?.order) ? Number(section.order) : 0;
+
+  if (!key || !content) {
+    return null;
+  }
+
+  return {
+    content,
+    heading: heading || key,
+    key,
+    order
+  };
+}
+
+function normalizeTransientSections(sections) {
+  if (!Array.isArray(sections)) {
+    return [];
+  }
+
+  return sections
+    .map((section) => normalizeTransientSection(section))
+    .filter(Boolean)
+    .sort((left, right) => {
+      const orderCompare = left.order - right.order;
+
+      if (orderCompare !== 0) {
+        return orderCompare;
+      }
+
+      return left.key.localeCompare(right.key);
+    });
+}
+
+function formatTransientMessageBlock(sections) {
+  const normalizedSections = normalizeTransientSections(sections);
+
+  if (!normalizedSections.length) {
+    return "";
+  }
+
+  return [
+    "_____transient",
+    "This is transient context, not instruction. It may change between requests.",
+    "",
+    ...normalizedSections.flatMap((section, index) => [
+      ...(index > 0 ? [""] : []),
+      `### ${section.heading}`,
+      section.content
+    ])
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function normalizeAdminPromptContext(promptContext, fallbackSystemPrompt = "") {
+  const normalizedContext =
+    promptContext && typeof promptContext === "object" && !Array.isArray(promptContext)
+      ? promptContext
+      : {};
+
+  return {
+    historySkillMessages: Array.isArray(normalizedContext.historySkillMessages)
+      ? normalizedContext.historySkillMessages.map((message) => normalizeConversationMessage(message)).filter(Boolean)
+      : [],
+    systemPrompt:
+      typeof normalizedContext.systemPrompt === "string"
+        ? normalizedContext.systemPrompt.trim()
+        : typeof fallbackSystemPrompt === "string"
+          ? fallbackSystemPrompt.trim()
+          : "",
+    transientSections: normalizeTransientSections(normalizedContext.transientSections)
+  };
+}
+
 export function formatAdminAgentHistoryText(messages) {
   if (!Array.isArray(messages) || !messages.length) {
     return "";
@@ -124,9 +204,13 @@ export function formatAdminAgentHistoryText(messages) {
     .trim();
 }
 
-export function buildAdminAgentPromptMessages(systemPrompt, messages) {
+export function buildAdminAgentPromptMessages(systemPromptOrContext, messages, options = {}) {
   const requestMessages = [];
-  const effectiveSystemPrompt = typeof systemPrompt === "string" ? systemPrompt.trim() : "";
+  const promptContext =
+    systemPromptOrContext && typeof systemPromptOrContext === "object" && !Array.isArray(systemPromptOrContext)
+      ? normalizeAdminPromptContext(systemPromptOrContext)
+      : normalizeAdminPromptContext(options.promptContext, systemPromptOrContext);
+  const effectiveSystemPrompt = promptContext.systemPrompt;
 
   if (effectiveSystemPrompt) {
     requestMessages.push({
@@ -134,6 +218,13 @@ export function buildAdminAgentPromptMessages(systemPrompt, messages) {
       content: effectiveSystemPrompt
     });
   }
+
+  promptContext.historySkillMessages.forEach((message) => {
+    requestMessages.push({
+      role: message.role,
+      content: buildMessageContentForApi(message)
+    });
+  });
 
   messages.forEach((message) => {
     const normalizedMessage = normalizeConversationMessage(message);
@@ -148,15 +239,28 @@ export function buildAdminAgentPromptMessages(systemPrompt, messages) {
     });
   });
 
+  const transientBlock = formatTransientMessageBlock(promptContext.transientSections);
+
+  if (transientBlock) {
+    requestMessages.push({
+      role: "user",
+      content: transientBlock
+    });
+  }
+
   return requestMessages;
 }
 
-function createRequestBody(settings, systemPrompt, messages) {
+function createRequestBody(settings, systemPrompt, messages, options = {}) {
   return {
     ...llmParams.parseAdminAgentParamsText(settings.paramsText || ""),
     model: settings.model || config.DEFAULT_ADMIN_CHAT_SETTINGS.model,
     stream: true,
-    messages: mergeConsecutiveChatMessages(buildAdminAgentPromptMessages(systemPrompt, messages))
+    messages: mergeConsecutiveChatMessages(
+      buildAdminAgentPromptMessages(systemPrompt, messages, {
+        promptContext: options.promptContext
+      })
+    )
   };
 }
 
@@ -300,25 +404,29 @@ async function readStreamingResponse(response, onDelta) {
 
 export const prepareAdminAgentApiRequest = globalThis.space.extend(
   import.meta,
-  async function prepareAdminAgentApiRequest({ settings, systemPrompt, messages } = {}) {
+  async function prepareAdminAgentApiRequest({ promptContext, settings, systemPrompt, messages } = {}) {
     const effectiveSettings =
       settings && typeof settings === "object" ? settings : config.DEFAULT_ADMIN_CHAT_SETTINGS;
     const apiEndpoint = String(effectiveSettings?.apiEndpoint || "").trim();
+    const normalizedPromptContext = normalizeAdminPromptContext(promptContext, systemPrompt);
 
     return {
       apiEndpoint,
       headers: createHeaders(String(effectiveSettings?.apiKey || "").trim()),
       messages: Array.isArray(messages) ? messages : [],
       method: "POST",
-      requestBody: createRequestBody(effectiveSettings, systemPrompt, messages),
+      promptContext: normalizedPromptContext,
+      requestBody: createRequestBody(effectiveSettings, normalizedPromptContext.systemPrompt, messages, {
+        promptContext: normalizedPromptContext
+      }),
       requestUrl: resolveChatRequestUrl(apiEndpoint),
       settings: effectiveSettings,
-      systemPrompt: typeof systemPrompt === "string" ? systemPrompt : ""
+      systemPrompt: normalizedPromptContext.systemPrompt
     };
   }
 );
 
-async function streamAdminAgentApiCompletion({ settings, systemPrompt, messages, onDelta, signal }) {
+async function streamAdminAgentApiCompletion({ promptContext, settings, systemPrompt, messages, onDelta, signal }) {
   if (!settings.apiEndpoint.trim()) {
     throw new Error("Set an API endpoint before sending a message.");
   }
@@ -333,6 +441,7 @@ async function streamAdminAgentApiCompletion({ settings, systemPrompt, messages,
 
   const apiRequest = await prepareAdminAgentApiRequest({
     messages,
+    promptContext,
     settings,
     systemPrompt
   });
@@ -357,12 +466,13 @@ async function streamAdminAgentApiCompletion({ settings, systemPrompt, messages,
   return readStreamingResponse(response, onDelta);
 }
 
-export async function streamAdminAgentCompletion({ settings, systemPrompt, messages, onDelta, signal }) {
+export async function streamAdminAgentCompletion({ promptContext, settings, systemPrompt, messages, onDelta, signal }) {
   const provider = config.normalizeAdminChatLlmProvider(settings?.provider);
+  const normalizedPromptContext = normalizeAdminPromptContext(promptContext, systemPrompt);
 
   if (provider === config.ADMIN_CHAT_LLM_PROVIDER.LOCAL) {
     const result = await getHuggingFaceManager().streamCompletion({
-      messages: buildAdminAgentPromptMessages(systemPrompt, messages),
+      messages: buildAdminAgentPromptMessages(normalizedPromptContext, messages),
       modelSelection: config.getAdminChatLocalModelSelection(settings),
       onDelta,
       requestOptions: llmParams.parseAdminAgentParamsText(settings.paramsText || ""),
@@ -375,8 +485,9 @@ export async function streamAdminAgentCompletion({ settings, systemPrompt, messa
   return streamAdminAgentApiCompletion({
     messages,
     onDelta,
+    promptContext: normalizedPromptContext,
     settings,
     signal,
-    systemPrompt
+    systemPrompt: normalizedPromptContext.systemPrompt
   });
 }

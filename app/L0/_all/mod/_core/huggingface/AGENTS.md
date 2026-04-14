@@ -14,7 +14,7 @@ This module owns:
 
 - `view.html`: routed test page for loading Hugging Face models and chatting with them
 - `config-sidebar.html`: standalone config-sidebar component used by the routed test page, the admin local-provider modal, and the onscreen-agent local-provider modal
-- `ext/pages/huggingface.yaml`: dashboard page-manifest entry for the routed Local LLM page backed by Hugging Face
+- `ext/panels/huggingface.yaml`: dashboard panel-manifest entry for the routed Local LLM page backed by Hugging Face
 - `manager.js`: singleton runtime manager for worker lifecycle, saved-model state, load or unload flow, and shared chat streaming within one browser context
 - `store.js`: routed page store that mirrors the shared manager state and owns only page-local chat UI behavior
 - `huggingface-worker-bootstrap.js`: tiny bootstrap worker that catches heavy worker import/startup failures and exposes them back to the page as protocol messages before rethrowing
@@ -30,7 +30,7 @@ This module owns:
 Current route contract:
 
 - the test route is `#/huggingface`
-- `ext/pages/huggingface.yaml` should continue to advertise this route through the shared dashboard pages index as `Local LLM`, using the shorthand manifest path `huggingface`
+- `ext/panels/huggingface.yaml` should continue to advertise this route through the shared dashboard panels index as `Local LLM`, using the shorthand manifest path `huggingface`
 - the page is browser-only and should not require backend API changes
 - the routed page is intentionally a compact, low-chrome manual test surface, not a general agent runtime
 - `view.html` should import the config sidebar through `<x-component path="/mod/_core/huggingface/config-sidebar.html" mode="testing">` instead of inlining that sidebar markup directly
@@ -50,7 +50,7 @@ Current route contract:
 - when the runtime is downloading multiple files in parallel, the worker should coalesce those events into one generic total-progress label and emit it on a short cadence so the status line stays readable
 - saved-model rows should expose a red discard button that removes cached browser files for that Hugging Face repo and prunes the corresponding saved-model entries from local storage
 - saved-model `Load` actions should remain enabled whenever the route is otherwise idle; discard-state bindings must not accidentally disable the whole list through non-boolean attribute values
-- on desktop, the route should sit slightly inside the viewport instead of filling it edge to edge, and the saved-model list should expand to consume the remaining sidebar height above the advanced section
+- on desktop, the route should stay viewport-capped without adding extra horizontal page padding; the router stage already constrains the outer width, and the saved-model list should expand to consume the remaining sidebar height above the advanced section
 - the advanced runtime section should stay collapsed by default
 - the general runtime disclaimer about WebGPU, ONNX compatibility, and browser caching should stay visible below the advanced section even while that section is collapsed
 - the system-prompt editor in the chat column should stay collapsed by default so the thread and composer keep most of the height

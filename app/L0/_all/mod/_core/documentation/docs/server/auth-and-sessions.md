@@ -60,6 +60,7 @@ Important rules:
 
 - do not hand-author these files
 - only backend helpers that hold the seal key can create accepted payloads
+- authenticated self-service password changes go through `/api/password_change`, which validates the current password against the opened sealed verifier, rewrites `meta/password.json`, clears `meta/logins.json`, and clears the current browser cookie
 - legacy plaintext verifier files are migrated to sealed form during startup; in clustered runtime that initialization stays on the primary before workers begin serving
 - the auth service uses the shared state system for challenge coordination; there is no second in-memory login-challenge path in the runtime
 
@@ -86,7 +87,7 @@ This mode is used especially by packaged desktop flows.
 Important side effects:
 
 - user creation initializes the user directory, `meta/`, and `mod/`, and publishes the new auth files so incremental user indexing sees the new account immediately
-- password resets rewrite the sealed verifier and clear active sessions
+- password resets rewrite the sealed verifier and clear active sessions, and the authenticated `_core/user` page reaches that same rewrite path through `/api/password_change` after the backend validates the current password
 - guest users use randomized `guest_...` usernames
 - guest deletion removes the whole `L2/<username>/` root and republishes that logical path so replicated user and session indexes drop the deleted guest immediately
 - periodic guest cleanup policy now lives in `server/jobs/`; auth owns the deletion primitive while the jobs own scheduling and file-index thresholds

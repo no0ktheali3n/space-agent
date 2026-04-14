@@ -592,7 +592,8 @@ export function createEmptyCanvasState(exampleDefinitions = [], { initialStage =
       } catch (error) {
         reportExampleError(error, {
           exampleId: exampleDefinition.id,
-          promptText: exampleDefinition.text
+          labelText: exampleDefinition.text,
+          promptText: exampleDefinition.prompt
         });
       } finally {
         button.disabled = false;

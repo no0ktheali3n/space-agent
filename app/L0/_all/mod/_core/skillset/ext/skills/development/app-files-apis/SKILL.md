@@ -48,13 +48,14 @@ When a UI needs user-visible download failure feedback without fetching the arch
 - Use permission-aware APIs, not ad hoc browser path guesses.
 - Use `space.api.call("file_paths", { method: "POST", body: { patterns: [...] } })` for indexed glob discovery; add `access: "write"` for writable-only results.
 - Use `space.api.call("module_list", ...)` only when you need module inventory metadata rather than raw file paths.
-- Use `space.api.call("extensions_load", ...)` when the browser needs module-owned `ext/...` assets resolved with layered override behavior, such as HTML adapters, JS hooks, or the dashboard's `ext/pages/*.yaml` page manifests.
+- Use `space.api.call("extensions_load", ...)` when the browser needs module-owned `ext/...` assets resolved with layered override behavior, such as HTML adapters, JS hooks, or the dashboard's `ext/panels/*.yaml` panel manifests.
 
 ## Storage Rules
 
 - Browser storage is for small non-authoritative UI state.
 - Persistent user or group state should live in app files or explicit backend APIs.
 - Use `space.config` only for frontend-exposed runtime params, not for general persistence.
+- Browser code may update the current user's `~/user.yaml` directly when changing browser-owned metadata such as `full_name`, but password rotation must stay backend-owned through `space.api.call("password_change", ...)` instead of writing `~/meta/password.json`.
 
 ## Identity Snapshot
 

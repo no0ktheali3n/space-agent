@@ -213,7 +213,7 @@ Current endpoint families:
 - app files: `file_list`, `file_paths`, `file_read`, `file_write`, `file_delete`, `file_copy`, `file_move`, `file_info`, `folder_download`
 - local history: `git_history_list`, `git_history_diff`, `git_history_preview`, `git_history_rollback`, `git_history_revert`
 - modules: `module_list`, `module_info`, `module_install`, `module_remove`
-- runtime and identity: `extensions_load`, `debug_path_index`, `password_generate`, `user_self_info`
+- runtime and identity: `extensions_load`, `debug_path_index`, `password_generate`, `password_change`, `user_self_info`
 
 `user_self_info` is the canonical authenticated identity snapshot for browser clients. Frontend callers infer writable app roots from `username`, `managedGroups`, and `_admin` membership in `groups` using the shared layer rules.
 

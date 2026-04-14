@@ -367,6 +367,46 @@ function verifyLoginProof(options = {}) {
   };
 }
 
+function verifyPassword(password, verifier = {}) {
+  const normalizedVerifier =
+    verifier &&
+    typeof verifier === "object" &&
+    !Array.isArray(verifier) &&
+    normalizeKeyText(verifier.storedKey)
+      ? {
+          iterations: normalizeIterations(verifier.iterations),
+          salt: String(verifier.salt || "").trim(),
+          storedKey: normalizeKeyText(verifier.storedKey)
+        }
+      : null;
+
+  if (!normalizedVerifier || !normalizedVerifier.iterations || !normalizedVerifier.salt) {
+    return false;
+  }
+
+  let expectedStoredKey;
+  let storedKey;
+
+  try {
+    const saltedPassword = deriveSaltedPassword(
+      password,
+      normalizedVerifier.salt,
+      normalizedVerifier.iterations
+    );
+    const clientKey = hmacSha256(saltedPassword, CLIENT_KEY_LABEL);
+    expectedStoredKey = sha256(clientKey);
+    storedKey = decodeBase64Url(normalizedVerifier.storedKey);
+  } catch {
+    return false;
+  }
+
+  if (expectedStoredKey.length !== storedKey.length || storedKey.length !== PASSWORD_KEY_LENGTH) {
+    return false;
+  }
+
+  return timingSafeEqual(expectedStoredKey, storedKey);
+}
+
 export {
   CLIENT_KEY_LABEL,
   LOGIN_AUTH_MESSAGE_PREFIX,
@@ -383,5 +423,6 @@ export {
   inspectPasswordRecord,
   migratePasswordVerifierRecord,
   openPasswordVerifierRecord,
-  verifyLoginProof
+  verifyLoginProof,
+  verifyPassword
 };
