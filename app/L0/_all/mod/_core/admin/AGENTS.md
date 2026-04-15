@@ -73,6 +73,7 @@ Current shell responsibilities:
 - `views/shell/shell.html` owns the split two-pane layout
 - `views/shell/shell.html` also exports the admin-page skill-context tag through `<x-skill-context tag="admin">`
 - `views/shell/shell.html` mirrors the routed `[id="_core/onscreen_menu/bar_start"]` inject host above admin tab content so embedded routed surfaces can reuse their existing injected controls inside `/admin`
+- that mirrored inject host must collapse completely when no active tab contributes controls, so the active admin panel still stretches to full height and the admin-agent composer stays pinned to the pane bottom while its thread scrolls above
 - `views/shell/shell.js` owns split sizing, drag-resize behavior, orientation-dependent layout, `?url=` startup handling, and leave-admin navigation back into the current iframe URL
 - `views/shell/page.js` owns admin tabs, dashboard quick actions, tab keyboard behavior, cached `space.api.userSelfInfo()` state, and `_admin` membership checks derived from `groups`
 - the admin topbar keeps tab controls in a real tablist and ends with a non-tab leave-admin icon button that calls the same `adminShell.leaveAdminArea()` action as the dashboard card

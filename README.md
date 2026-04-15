@@ -1,12 +1,6 @@
 <p align="center">
-  <a href="https://space-agent.ai"><img src="./server/pages/res/astronaut_no_bg.webp" alt="Space Agent astronaut" width="280" /></a>
+  <a href="https://space-agent.ai"><img src="./.github/readme-banner-thin.webp" alt="Space Agent banner" /></a>
 </p>
-
-<h1 align="center">Space Agent</h1>
-
-<h3 align="center">
-  <strong>The Agent that can re-shape the Space</strong>
-</h3>
 
 <p align="center">
 <br>
@@ -126,6 +120,8 @@ node space serve
 ```bash
 npm run dev # server with auto-reload
 ```
+
+Open the checked-in VS Code launch entry `Dev Server (npm run dev)` when you want breakpoints in `server/` code. It launches the same watcher and auto-attaches to the spawned `node space serve` process across restarts.
 
 ### For production
 

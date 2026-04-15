@@ -101,7 +101,8 @@ These rules apply across the codebase:
 Top-level structure:
 
 - `space`: root CLI router that discovers command modules dynamically
-- `.github/`: repo-level automation, tagged desktop release publishing, and lightweight public assets used by the README
+- `.github/`: repo-level automation, tagged desktop release publishing, and lightweight public assets used by the README, including hero and badge artwork
+- `.vscode/`: workspace editor settings plus the checked-in `npm run dev` debugger launch config for server-side breakpoints during local development
 - `commands/`: CLI command modules such as `serve`, `help`, `get`, `set`, `version`, and `update`
 - `app/`: browser runtime, layered customware model, shared frontend modules, and browser test surfaces
 - `server/`: thin local infrastructure runtime, with page shells, request routing, API hosting, fetch proxying, file-watch indexes, auth/session infrastructure, and Git support code
@@ -153,6 +154,7 @@ Project concepts:
 - `npm install` for the standard source checkout
 - `npm install --omit=optional` when native optional dependencies are not expected to work
 - `npm run dev` to run the local dev supervisor
+- `.vscode/launch.json` provides a `Dev Server (npm run dev)` debugger entry that launches the local dev supervisor and auto-attaches to its spawned `node space serve` child so `server/` breakpoints keep working after watcher restarts
 - `node space serve` to run the server directly
 - `node space supervise CUSTOMWARE_PATH=<path>` to run the production-ready zero-downtime auto-update supervisor for source checkouts
 - `npm run install:packaging` to install packaging-only dependencies
@@ -189,7 +191,7 @@ Child-doc obligations:
 
 Core ownership:
 
-- `/README.md` owns the public-facing project overview, quick starts, call-to-action links, community links, release entry points, and DeepWiki discovery link; it must point back to the binding `AGENTS.md` contract instead of replacing it
+- `/README.md` owns the public-facing project overview, quick starts, call-to-action links, community links, release entry points, DeepWiki discovery link, and public hero artwork; it must point back to the binding `AGENTS.md` contract instead of replacing it
 - `/AGENTS.md` owns repo-wide rules, documentation policy, top-level structure, and cross-cutting principles
 - `/app/AGENTS.md` owns browser-runtime architecture, layer rules, frontend composition rules, and app-wide guidance
 - `/server/AGENTS.md` owns server responsibilities, request flow, API/module/page boundaries, and server-wide infrastructure guidance

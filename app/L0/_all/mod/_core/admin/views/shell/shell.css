@@ -185,8 +185,8 @@ html[data-layout="vertical"] .divider-handle {
 }
 
 .admin-page {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   flex: 1 1 auto;
   min-height: 0;

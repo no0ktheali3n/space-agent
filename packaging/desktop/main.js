@@ -1,17 +1,32 @@
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
-const { app, BrowserWindow, dialog, net } = require("electron");
+const { app, BrowserWindow, ipcMain, net } = require("electron");
 
 const PROJECT_ROOT = path.resolve(__dirname, "../..");
 const SERVER_APP_PATH = path.join(PROJECT_ROOT, "server", "app.js");
 const BASE_WINDOW_TITLE = "Space Agent";
+const DESKTOP_UPDATE_RENDERER_LOG_LIMIT = 48;
+const DESKTOP_UPDATE_FAILURE_STATUS_LIMIT = 120;
 
 let serverRuntime;
 let mainWindow;
 let isQuitting = false;
-let hasPromptedForDownloadedUpdate = false;
 let updateStatusClearTimer = null;
 let desktopAutoUpdater = null;
+let desktopPageTitle = BASE_WINDOW_TITLE;
+let desktopUpdateStatusMessage = "";
+let desktopUpdateRendererLogQueue = [];
+let isFlushingDesktopRendererLogs = false;
+let lastDesktopUpdateFailureKey = "";
+let lastDesktopUpdateFailureAt = 0;
+let desktopUpdateCheckPromise = null;
+let desktopUpdateDownloadPromise = null;
+let desktopUpdateState = {
+  state: "idle",
+  message: "",
+  progress: null,
+  version: ""
+};
 
 function createDesktopRuntimeParamOverrides() {
   const overrides = {};
@@ -62,13 +77,32 @@ function clearUpdateStatusSoon(delayMs = 5000) {
   }, delayMs);
 }
 
-function setDesktopUpdateStatus(message, progress = null) {
+function normalizeDesktopWindowTitle(value) {
+  const normalized = String(value || "").trim();
+  return normalized || BASE_WINDOW_TITLE;
+}
+
+function refreshDesktopWindowTitle() {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
   }
 
-  const normalizedMessage = String(message || "").trim();
-  mainWindow.setTitle(normalizedMessage ? `${BASE_WINDOW_TITLE} - ${normalizedMessage}` : BASE_WINDOW_TITLE);
+  const titleParts = [normalizeDesktopWindowTitle(desktopPageTitle)];
+  if (desktopUpdateStatusMessage) {
+    titleParts.push(desktopUpdateStatusMessage);
+  }
+
+  mainWindow.setTitle(titleParts.join(" - "));
+}
+
+function setDesktopUpdateStatus(message, progress = null) {
+  desktopUpdateStatusMessage = String(message || "").trim();
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  refreshDesktopWindowTitle();
 
   if (progress === "indeterminate") {
     mainWindow.setProgressBar(2);
@@ -83,6 +117,201 @@ function setDesktopUpdateStatus(message, progress = null) {
   mainWindow.setProgressBar(-1);
 }
 
+function setDesktopUpdateState(nextState = {}) {
+  desktopUpdateState = {
+    ...desktopUpdateState,
+    ...nextState
+  };
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("space-desktop:update-status", desktopUpdateState);
+  }
+}
+
+function getDesktopRuntimeInfo() {
+  const canCheckForUpdates = shouldEnableDesktopAutoUpdate() && Boolean(loadDesktopAutoUpdater());
+
+  return {
+    platform: process.platform,
+    isBundledApp: app.isPackaged,
+    canCheckForUpdates,
+    updateStatus: desktopUpdateState
+  };
+}
+
+function truncateDesktopUpdateStatus(value, maxLength = DESKTOP_UPDATE_FAILURE_STATUS_LIMIT) {
+  const normalized = String(value || "").replace(/\s+/gu, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+function collectDesktopUpdateErrorDetails(error) {
+  const details = [];
+
+  if (!error || typeof error !== "object") {
+    return details;
+  }
+
+  if (error.name) {
+    details.push(`name: ${error.name}`);
+  }
+
+  if (error.code) {
+    details.push(`code: ${error.code}`);
+  }
+
+  if (Number.isFinite(Number(error.statusCode))) {
+    details.push(`statusCode: ${Number(error.statusCode)}`);
+  }
+
+  if (error.method) {
+    details.push(`method: ${error.method}`);
+  }
+
+  if (error.url) {
+    details.push(`url: ${error.url}`);
+  }
+
+  if (error.stack) {
+    details.push(String(error.stack));
+  }
+
+  return details;
+}
+
+function formatDesktopUpdateError(error) {
+  if (!error) {
+    return {
+      summary: "Unknown updater error.",
+      details: []
+    };
+  }
+
+  if (typeof error === "string") {
+    const summary = String(error).trim();
+    return {
+      summary: summary || "Unknown updater error.",
+      details: summary ? [summary] : []
+    };
+  }
+
+  const summary = String(error.message || error.stack || error).trim();
+  const details = collectDesktopUpdateErrorDetails(error);
+
+  if (!details.length && summary) {
+    details.push(summary);
+  }
+
+  return {
+    summary: summary || "Unknown updater error.",
+    details
+  };
+}
+
+function queueDesktopRendererLog(level, lines) {
+  const entry = {
+    level,
+    timestamp: new Date().toISOString(),
+    lines: Array.isArray(lines) ? lines.filter(Boolean) : []
+  };
+
+  desktopUpdateRendererLogQueue.push(entry);
+  if (desktopUpdateRendererLogQueue.length > DESKTOP_UPDATE_RENDERER_LOG_LIMIT) {
+    desktopUpdateRendererLogQueue = desktopUpdateRendererLogQueue.slice(-DESKTOP_UPDATE_RENDERER_LOG_LIMIT);
+  }
+}
+
+function flushDesktopRendererLogs() {
+  if (!mainWindow || mainWindow.isDestroyed() || !desktopUpdateRendererLogQueue.length || isFlushingDesktopRendererLogs) {
+    return;
+  }
+
+  const pendingEntries = desktopUpdateRendererLogQueue.slice();
+  const script = `(() => {
+    const entries = ${JSON.stringify(pendingEntries)};
+    for (const entry of entries) {
+      const method = entry.level === "error" ? "error" : entry.level === "warn" ? "warn" : "log";
+      const prefix = "[space-desktop/updater]";
+      const body = Array.isArray(entry.lines) ? entry.lines.join("\\n") : "";
+      console[method](prefix + " " + entry.timestamp + "\\n" + body);
+    }
+  })();`;
+
+  isFlushingDesktopRendererLogs = true;
+  mainWindow.webContents
+    .executeJavaScript(script, true)
+    .then(() => {
+      desktopUpdateRendererLogQueue = desktopUpdateRendererLogQueue.slice(pendingEntries.length);
+      isFlushingDesktopRendererLogs = false;
+      if (desktopUpdateRendererLogQueue.length) {
+        flushDesktopRendererLogs();
+      }
+    })
+    .catch(() => {
+      isFlushingDesktopRendererLogs = false;
+      // Keep the buffered logs so the next page load can print them.
+    });
+}
+
+function logDesktopUpdateEvent(message, { level = "log", error = null } = {}) {
+  const formattedError = error ? formatDesktopUpdateError(error) : null;
+  const lines = [`[desktop-updater] ${message}`];
+
+  if (formattedError?.summary) {
+    lines.push(`summary: ${formattedError.summary}`);
+  }
+
+  if (formattedError?.details?.length) {
+    lines.push(...formattedError.details);
+  }
+
+  lines.forEach((line) => {
+    console[level](line);
+  });
+
+  queueDesktopRendererLog(level, lines);
+  flushDesktopRendererLogs();
+
+  return formattedError;
+}
+
+function buildDesktopUpdateFailureStatus(error) {
+  const { summary } = formatDesktopUpdateError(error);
+  return truncateDesktopUpdateStatus(`Update check failed: ${summary}`);
+}
+
+function reportDesktopUpdateFailure(message, error) {
+  const formattedError = formatDesktopUpdateError(error);
+  const failureKey = `${message}::${formattedError.summary}`;
+  const now = Date.now();
+
+  if (failureKey === lastDesktopUpdateFailureKey && now - lastDesktopUpdateFailureAt < 2000) {
+    return formattedError;
+  }
+
+  lastDesktopUpdateFailureKey = failureKey;
+  lastDesktopUpdateFailureAt = now;
+
+  logDesktopUpdateEvent(message, { level: "error", error });
+  setDesktopUpdateStatus(buildDesktopUpdateFailureStatus(error));
+  setDesktopUpdateState({
+    state: "error",
+    message: formattedError.summary,
+    progress: null,
+    version: ""
+  });
+  clearUpdateStatusSoon(15000);
+
+  return formattedError;
+}
+
 function shouldEnableDesktopAutoUpdate() {
   return app.isPackaged;
 }
@@ -95,8 +324,7 @@ function loadDesktopAutoUpdater() {
   try {
     ({ autoUpdater: desktopAutoUpdater } = require("electron-updater"));
   } catch (error) {
-    console.warn("Desktop auto-update is unavailable.");
-    console.warn(error && (error.stack || error.message || error));
+    logDesktopUpdateEvent("Desktop auto-update is unavailable.", { level: "warn", error });
     desktopAutoUpdater = null;
   }
 
@@ -107,46 +335,134 @@ function isDesktopNetworkOnline() {
   try {
     return !net || typeof net.isOnline !== "function" || net.isOnline();
   } catch (error) {
-    logDesktopUpdateError("Could not determine desktop network status.", error);
+    reportDesktopUpdateFailure("Could not determine desktop network status.", error);
     return true;
   }
 }
 
-function logDesktopUpdateError(message, error) {
-  console.warn(message);
-  console.warn(error && (error.stack || error.message || error));
+async function checkForDesktopUpdates({ userInitiated = false } = {}) {
+  if (!shouldEnableDesktopAutoUpdate()) {
+    return { ok: false, reason: "unavailable" };
+  }
+
+  const autoUpdater = loadDesktopAutoUpdater();
+  if (!autoUpdater) {
+    return { ok: false, reason: "unavailable" };
+  }
+
+  if (desktopUpdateCheckPromise) {
+    return desktopUpdateCheckPromise;
+  }
+
+  if (!isDesktopNetworkOnline()) {
+    const message = "Update check skipped while offline.";
+    logDesktopUpdateEvent(`Desktop ${message.toLowerCase()}`);
+    setDesktopUpdateStatus(message);
+    setDesktopUpdateState({
+      state: "offline",
+      message,
+      progress: null,
+      version: ""
+    });
+    clearUpdateStatusSoon();
+    return { ok: false, reason: "offline", message };
+  }
+
+  desktopUpdateCheckPromise = (async () => {
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      const version = String(result?.updateInfo?.version || "").trim();
+
+      return {
+        ok: true,
+        status: desktopUpdateState.state || "checked",
+        version
+      };
+    } catch (error) {
+      const formattedError = reportDesktopUpdateFailure(
+        userInitiated ? "Desktop update check failed." : "Desktop auto-update check failed.",
+        error
+      );
+
+      return {
+        ok: false,
+        reason: "error",
+        message: formattedError.summary
+      };
+    } finally {
+      desktopUpdateCheckPromise = null;
+    }
+  })();
+
+  return desktopUpdateCheckPromise;
 }
 
-async function promptForDownloadedUpdate(info) {
-  if (hasPromptedForDownloadedUpdate) {
-    return;
+async function downloadDesktopUpdate() {
+  if (!shouldEnableDesktopAutoUpdate()) {
+    return { ok: false, reason: "unavailable" };
   }
 
-  hasPromptedForDownloadedUpdate = true;
-  const detail = [
-    `Version ${info?.version || "unknown"} is ready to install.`,
-    "Restart now to apply the update, or keep working and install it when you quit."
-  ].join("\n\n");
-  const options = {
-    type: "info",
-    buttons: ["Restart Now", "Later"],
-    defaultId: 0,
-    cancelId: 1,
-    noLink: true,
-    title: "Update Ready",
-    message: "A new Space Agent release has been downloaded.",
-    detail
-  };
-  const window = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
-  const { response } = window
-    ? await dialog.showMessageBox(window, options)
-    : await dialog.showMessageBox(options);
-
-  if (response === 0) {
-    setImmediate(() => {
-      desktopAutoUpdater?.quitAndInstall();
-    });
+  const autoUpdater = loadDesktopAutoUpdater();
+  if (!autoUpdater) {
+    return { ok: false, reason: "unavailable" };
   }
+
+  if (desktopUpdateState.state === "downloaded") {
+    return { ok: true, status: "downloaded", version: desktopUpdateState.version || "" };
+  }
+
+  if (desktopUpdateDownloadPromise) {
+    return desktopUpdateDownloadPromise;
+  }
+
+  if (desktopUpdateState.state !== "update-available") {
+    return { ok: false, reason: "not-ready", message: "No downloaded desktop update is ready yet." };
+  }
+
+  desktopUpdateDownloadPromise = (async () => {
+    try {
+      await autoUpdater.downloadUpdate();
+      return {
+        ok: true,
+        status: "downloading",
+        version: desktopUpdateState.version || ""
+      };
+    } catch (error) {
+      const formattedError = reportDesktopUpdateFailure("Desktop update download failed.", error);
+      return {
+        ok: false,
+        reason: "error",
+        message: formattedError.summary
+      };
+    } finally {
+      desktopUpdateDownloadPromise = null;
+    }
+  })();
+
+  return desktopUpdateDownloadPromise;
+}
+
+function installDesktopUpdate() {
+  if (!shouldEnableDesktopAutoUpdate()) {
+    return { ok: false, reason: "unavailable" };
+  }
+
+  const autoUpdater = loadDesktopAutoUpdater();
+  if (!autoUpdater) {
+    return { ok: false, reason: "unavailable" };
+  }
+
+  if (desktopUpdateState.state !== "downloaded") {
+    return { ok: false, reason: "not-ready", message: "No downloaded update is ready to install yet." };
+  }
+
+  logDesktopUpdateEvent("Installing downloaded desktop update.");
+  setDesktopUpdateStatus("Restarting to install update...");
+  setImmediate(() => {
+    autoUpdater.quitAndInstall();
+  });
+
+  return { ok: true, status: "installing", version: desktopUpdateState.version || "" };
 }
 
 function configureDesktopAutoUpdate() {
@@ -159,67 +475,81 @@ function configureDesktopAutoUpdate() {
     return;
   }
 
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = console;
 
   autoUpdater.on("checking-for-update", () => {
-    console.log("Checking GitHub Releases for a desktop update...");
+    logDesktopUpdateEvent("Checking GitHub Releases for a desktop update...");
     setDesktopUpdateStatus("Checking for updates...", "indeterminate");
+    setDesktopUpdateState({
+      state: "checking",
+      message: "Checking for updates...",
+      progress: null,
+      version: ""
+    });
   });
 
   autoUpdater.on("update-available", (info) => {
-    console.log(`Desktop update available: ${info.version}`);
-    setDesktopUpdateStatus(`Downloading update ${info.version || ""}`.trim(), 0);
+    const version = String(info?.version || "").trim();
+    logDesktopUpdateEvent(`Desktop update available: ${version}`);
+    setDesktopUpdateStatus(version ? `Update ${version} available` : "Update available");
+    setDesktopUpdateState({
+      state: "update-available",
+      message: version ? `Update ${version} is available.` : "A desktop update is available.",
+      progress: null,
+      version
+    });
   });
 
   autoUpdater.on("update-not-available", () => {
-    console.log("Desktop app is already up to date.");
+    logDesktopUpdateEvent("Desktop app is already up to date.");
     setDesktopUpdateStatus("Up to date");
+    setDesktopUpdateState({
+      state: "up-to-date",
+      message: "Desktop app is already up to date.",
+      progress: null,
+      version: ""
+    });
     clearUpdateStatusSoon();
   });
 
   autoUpdater.on("error", (error) => {
-    logDesktopUpdateError("Desktop auto-update failed.", error);
-    setDesktopUpdateStatus("Update check failed");
-    clearUpdateStatusSoon(8000);
+    reportDesktopUpdateFailure("Desktop auto-update failed.", error);
   });
 
   autoUpdater.on("download-progress", (progress) => {
     const percent = Number(progress && progress.percent);
     if (!Number.isFinite(percent)) {
       setDesktopUpdateStatus("Downloading update...", "indeterminate");
+      setDesktopUpdateState({
+        state: "downloading",
+        message: "Downloading update...",
+        progress: null
+      });
       return;
     }
 
-    setDesktopUpdateStatus(`Downloading update ${Math.round(percent)}%`, percent / 100);
-  });
-
-  autoUpdater.on("update-downloaded", (info) => {
-    console.log(`Desktop update downloaded: ${info.version}`);
-    setDesktopUpdateStatus("Update ready to install");
-    promptForDownloadedUpdate(info).catch((error) => {
-      logDesktopUpdateError("Could not show the restart prompt for the downloaded update.", error);
+    const message = `Downloading update ${Math.round(percent)}%`;
+    setDesktopUpdateStatus(message, percent / 100);
+    setDesktopUpdateState({
+      state: "downloading",
+      message,
+      progress: percent / 100
     });
   });
 
-  setTimeout(() => {
-    if (!isDesktopNetworkOnline()) {
-      console.log("Skipping desktop update check while offline.");
-      return;
-    }
-
-    try {
-      const updateCheck = autoUpdater.checkForUpdates();
-      if (updateCheck && typeof updateCheck.catch === "function") {
-        updateCheck.catch((error) => {
-          logDesktopUpdateError("Desktop auto-update check failed.", error);
-        });
-      }
-    } catch (error) {
-      logDesktopUpdateError("Desktop auto-update check failed.", error);
-    }
-  }, 10000);
+  autoUpdater.on("update-downloaded", (info) => {
+    const version = String(info?.version || "").trim();
+    logDesktopUpdateEvent(`Desktop update downloaded: ${version}`);
+    setDesktopUpdateStatus("Update ready to install");
+    setDesktopUpdateState({
+      state: "downloaded",
+      message: version ? `Update ${version} is ready to install.` : "Update ready to install.",
+      progress: null,
+      version
+    });
+  });
 }
 
 async function loadCreateAgentServer() {
@@ -239,13 +569,16 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 720,
     backgroundColor: "#f2efe8",
-    title: "Space Agent",
+    title: BASE_WINDOW_TITLE,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false
     }
   });
+
+  desktopPageTitle = BASE_WINDOW_TITLE;
+  refreshDesktopWindowTitle();
 
   mainWindow.on("close", (event) => {
     // On macOS, Cmd+W should hide the app and preserve renderer state.
@@ -257,6 +590,20 @@ function createWindow() {
 
   mainWindow.on("closed", () => {
     mainWindow = null;
+    desktopPageTitle = BASE_WINDOW_TITLE;
+  });
+
+  mainWindow.webContents.on("page-title-updated", (event, title) => {
+    event.preventDefault();
+    desktopPageTitle = normalizeDesktopWindowTitle(title);
+    refreshDesktopWindowTitle();
+  });
+
+  mainWindow.webContents.on("did-finish-load", () => {
+    desktopPageTitle = normalizeDesktopWindowTitle(mainWindow?.webContents?.getTitle?.() || desktopPageTitle);
+    refreshDesktopWindowTitle();
+    flushDesktopRendererLogs();
+    mainWindow.webContents.send("space-desktop:update-status", desktopUpdateState);
   });
 
   mainWindow.loadURL(`${serverRuntime.browserUrl}${resolveDesktopLaunchPath()}`);
@@ -310,6 +657,11 @@ app.on("window-all-closed", () => {
     app.quit();
   }
 });
+
+ipcMain.handle("space-desktop:get-runtime-info", () => getDesktopRuntimeInfo());
+ipcMain.handle("space-desktop:check-for-updates", () => checkForDesktopUpdates({ userInitiated: true }));
+ipcMain.handle("space-desktop:download-update", () => downloadDesktopUpdate());
+ipcMain.handle("space-desktop:install-update", () => installDesktopUpdate());
 
 app.on("before-quit", () => {
   isQuitting = true;

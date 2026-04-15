@@ -1,5 +1,5 @@
 import * as config from "/mod/_core/onscreen_agent/config.js";
-import { buildMessageContentForApi } from "/mod/_core/onscreen_agent/attachments.js";
+import { buildMessagePromptParts, MESSAGE_PROMPT_PART_BLOCK } from "/mod/_core/onscreen_agent/attachments.js";
 import * as llmParams from "/mod/_core/onscreen_agent/llm-params.js";
 import * as skills from "/mod/_core/onscreen_agent/skills.js";
 import { mergeConsecutiveChatMessages } from "/mod/_core/framework/js/chat-messages.js";
@@ -34,6 +34,7 @@ const ONSCREEN_AGENT_PROMPT_MESSAGE_SOURCE = Object.freeze({
   SYSTEM: "system",
   TRANSIENT: "transient"
 });
+const ONSCREEN_AGENT_EXAMPLE_RESET_TEXT = "start of new conversation - don't refer to previous contents";
 
 let defaultSystemPromptPromise = null;
 const compactPromptPromises = {
@@ -150,15 +151,8 @@ function normalizeConversationMessages(messages) {
   return messages.map((message) => normalizeConversationMessage(message)).filter(Boolean);
 }
 
-function isFrameworkUserMessage(message) {
-  return message?.role === "user" && Boolean(typeof message?.kind === "string" ? message.kind.trim() : "");
-}
-
-function formatPreparedUserMessageBlock(content, message) {
+function formatPreparedUserMessageBlock(content, blockMarker) {
   const normalizedContent = typeof content === "string" ? content.trim() : "";
-  const blockMarker = isFrameworkUserMessage(message)
-    ? ONSCREEN_AGENT_PREPARED_MESSAGE_BLOCK.FRAMEWORK
-    : ONSCREEN_AGENT_PREPARED_MESSAGE_BLOCK.USER;
 
   return [
     blockMarker,
@@ -218,37 +212,73 @@ function resolveHistoryPromptEntrySource(message) {
     : ONSCREEN_AGENT_PROMPT_MESSAGE_SOURCE.HISTORY;
 }
 
-function createPreparedPromptEntryFromMessage(message, options = {}) {
+function createExampleResetPromptEntry() {
+  return createPreparedPromptEntry(
+    "user",
+    formatPreparedUserMessageBlock(
+      ONSCREEN_AGENT_EXAMPLE_RESET_TEXT,
+      ONSCREEN_AGENT_PREPARED_MESSAGE_BLOCK.FRAMEWORK
+    ),
+    {
+      blockType: ONSCREEN_AGENT_PREPARED_MESSAGE_BLOCK.FRAMEWORK,
+      source: ONSCREEN_AGENT_PROMPT_MESSAGE_SOURCE.EXAMPLE
+    }
+  );
+}
+
+function appendExampleResetPromptEntry(entries) {
+  const normalizedEntries = clonePreparedPromptEntries(entries);
+
+  if (!normalizedEntries.length) {
+    return normalizedEntries;
+  }
+
+  const resetEntry = createExampleResetPromptEntry();
+  return resetEntry ? [...normalizedEntries, resetEntry] : normalizedEntries;
+}
+
+function createPreparedPromptEntriesFromMessage(message, options = {}) {
   const normalizedMessage = normalizeConversationMessage(message);
 
   if (!normalizedMessage) {
-    return null;
+    return [];
   }
 
-  const builtContent = buildMessageContentForApi(normalizedMessage);
-  const promptContent =
-    normalizedMessage.role === "user"
-      ? formatPreparedUserMessageBlock(builtContent, normalizedMessage)
-      : builtContent;
-  const blockType =
-    normalizedMessage.role === "assistant"
-      ? "assistant"
-      : isFrameworkUserMessage(normalizedMessage)
-        ? ONSCREEN_AGENT_PREPARED_MESSAGE_BLOCK.FRAMEWORK
-        : ONSCREEN_AGENT_PREPARED_MESSAGE_BLOCK.USER;
+  const source = options.source || resolveHistoryPromptEntrySource(normalizedMessage);
 
-  return createPreparedPromptEntry(normalizedMessage.role, promptContent, {
-    blockType,
-    kind: normalizedMessage.kind,
-    messageId: normalizedMessage.id,
-    source: options.source || resolveHistoryPromptEntrySource(normalizedMessage)
-  });
+  return buildMessagePromptParts(normalizedMessage)
+    .map((part) => {
+      if (part.blockType === MESSAGE_PROMPT_PART_BLOCK.ASSISTANT) {
+        return createPreparedPromptEntry("assistant", part.content, {
+          blockType: "assistant",
+          kind: normalizedMessage.kind,
+          messageId: normalizedMessage.id,
+          source
+        });
+      }
+
+      const blockType =
+        part.blockType === MESSAGE_PROMPT_PART_BLOCK.FRAMEWORK
+          ? ONSCREEN_AGENT_PREPARED_MESSAGE_BLOCK.FRAMEWORK
+          : ONSCREEN_AGENT_PREPARED_MESSAGE_BLOCK.USER;
+
+      return createPreparedPromptEntry(
+        "user",
+        formatPreparedUserMessageBlock(part.content, blockType),
+        {
+          blockType,
+          kind: normalizedMessage.kind,
+          messageId: normalizedMessage.id,
+          source
+        }
+      );
+    })
+    .filter(Boolean);
 }
 
 function buildPreparedPromptEntriesFromMessages(messages, options = {}) {
   return normalizeConversationMessages(messages)
-    .map((message) => createPreparedPromptEntryFromMessage(message, options))
-    .filter(Boolean);
+    .flatMap((message) => createPreparedPromptEntriesFromMessage(message, options));
 }
 
 function createSystemPromptEntry(systemPrompt = "") {
@@ -586,9 +616,11 @@ export const buildOnscreenAgentPromptInput = globalThis.space.extend(
       systemPrompt: runtimeSystemPrompt,
       systemPromptContext
     });
-    const exampleEntries = buildPreparedPromptEntriesFromMessages(exampleContext?.exampleMessages, {
-      source: ONSCREEN_AGENT_PROMPT_MESSAGE_SOURCE.EXAMPLE
-    });
+    const exampleEntries = appendExampleResetPromptEntry(
+      buildPreparedPromptEntriesFromMessages(exampleContext?.exampleMessages, {
+        source: ONSCREEN_AGENT_PROMPT_MESSAGE_SOURCE.EXAMPLE
+      })
+    );
     const historyContext = await buildOnscreenAgentHistoryMessages({
       ...context,
       exampleEntries: clonePreparedPromptEntries(exampleEntries),
@@ -598,8 +630,8 @@ export const buildOnscreenAgentPromptInput = globalThis.space.extend(
       systemPromptContext
     });
     const historyEntries = normalizeConversationMessages(historyContext?.historyMessages)
-      .map((message) =>
-        createPreparedPromptEntryFromMessage(message, {
+      .flatMap((message) =>
+        createPreparedPromptEntriesFromMessage(message, {
           source: resolveHistoryPromptEntrySource(message)
         })
       )
@@ -736,8 +768,8 @@ class OnscreenAgentPromptInstance {
       systemPromptContext: this.promptInput.systemPromptContext
     });
     const historyEntries = normalizeConversationMessages(historyContext?.historyMessages)
-      .map((message) =>
-        createPreparedPromptEntryFromMessage(message, {
+      .flatMap((message) =>
+        createPreparedPromptEntriesFromMessage(message, {
           source: resolveHistoryPromptEntrySource(message)
         })
       )

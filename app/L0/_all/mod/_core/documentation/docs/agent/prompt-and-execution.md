@@ -21,6 +21,7 @@ Current timing:
 - init restores config, browser UI state, and saved history
 - the first prompt-dependent action such as send, prompt-history open, or another explicit rebuild path then lazily loads the default system prompt, installs the onscreen skill runtime, and runs prompt-section assembly
 - later prompt rebuilds reuse the same prompt runtime and only refresh the parts that changed
+- incremental history refresh still reuses the same prepared-message builders as the full prompt build, so prompt-history previews and outbound request payloads stay aligned after settled turns
 
 ## Prepared Prompt Order
 
@@ -33,6 +34,7 @@ system -> examples -> compacted history summary (when present) -> live history -
 Important details:
 
 - example messages are ordinary alternating user/assistant messages inserted before live history
+- when any example messages exist, the prepared prompt appends one final example-sourced `_____framework` boundary that says `start of new conversation - don't refer to previous contents` before the first live-history turn
 - example messages count toward token totals but are never replaced by compaction
 - owner modules may prepend extra system-prompt sections before the skill catalog; `_core/promptinclude` currently injects a stable `## prompt includes` instruction block there and then appends readable `*.system.include.md` files as extra system-prompt sections
 - transient runtime context is emitted as its own trailing prepared message when present
@@ -48,6 +50,8 @@ Prepared user-role messages use explicit wrappers:
 - `_____transient`: trailing mutable runtime context
 
 These markers matter for prompt inspection, execution flows, and staged widget workflows.
+
+When a real user turn includes attachments, the `_____user` block contains the literal message text plus the `Attachments↓` list, and the `space.chat` runtime instructions for those attachments are emitted as a following `_____framework` block.
 
 ## Skill Injection
 

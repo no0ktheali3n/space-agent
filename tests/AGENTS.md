@@ -50,6 +50,7 @@ This scope owns:
 - `user_folder_quota_test.mjs`: focused server-side harness for `USER_FOLDER_SIZE_LIMIT_BYTES`, cached per-user `L2` size accounting, write growth rejection, size-reducing writes, deletes, batch aggregation, and copy checks
 - standalone repo-level verification scripts such as `yaml_lite_test.mjs`
 - `project_version_test.mjs`: focused helper coverage for package-version display tags and project-version fallback behavior used by the CLI and page shells
+- `onscreen_agent_prompt_shape_test.mjs`: focused overlay-agent prompt-shaping coverage for attachment block splitting and the example-to-live-history reset boundary
 - shared expectations for test config, fixtures, scripted execution, and saved evaluation results
 
 ## Local Contracts

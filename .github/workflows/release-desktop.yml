@@ -310,68 +310,42 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
         run: |
-          files=()
-          while IFS= read -r -d '' filter; do
-            while IFS= read -r -d '' file; do
-              files+=("$file")
-            done < <(find release-assets -path "$filter" -type f -print0)
-          done < <(
-            ruby -ryaml -e '
-              config = YAML.safe_load(File.read("packaging/release-asset-filters.yaml"), aliases: false)
-              filters = config.fetch("release_upload_filters").map { |entry| entry.fetch("pattern") }
-              STDOUT.write(filters.join("\0"))
-              STDOUT.write("\0")
-            '
-          )
+          upload_dir="release-upload"
+          node packaging/scripts/release-assets-stage.js release-assets "$upload_dir" "$RELEASE_VERSION"
 
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No selected desktop release artifacts were found for upload." >&2
+          manifest_path="$upload_dir/.manifest.json"
+          if [ ! -f "$manifest_path" ]; then
+            echo "Release upload manifest was not generated." >&2
             exit 1
           fi
 
-          upload_dir="release-upload"
-          rm -rf "$upload_dir"
-          mkdir -p "$upload_dir"
-          upload_files=()
-          stale_asset_names=()
+          mapfile -t stale_asset_names < <(
+            node -e '
+              const fs = require("node:fs");
+              const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+              for (const name of manifest.staleAssetNames || []) {
+                process.stdout.write(String(name) + "\n");
+              }
+            ' "$manifest_path"
+          )
 
-          printf 'Selected desktop release artifacts:\n'
-          for file in "${files[@]}"; do
-            artifact_dir="$(basename "$(dirname "$file")")"
-            platform="${artifact_dir%-*}"
-            arch="${artifact_dir##*-}"
-            case "$file" in
-              *.AppImage)
-                extension="AppImage"
-                ;;
-              *.dmg)
-                extension="dmg"
-                ;;
-              *.exe)
-                extension="exe"
-                ;;
-              *)
-                echo "Could not infer release asset extension for $file" >&2
-                exit 1
-                ;;
-            esac
+          mapfile -t upload_files < <(
+            node -e '
+              const fs = require("node:fs");
+              const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+              for (const filePath of manifest.uploadFiles || []) {
+                process.stdout.write(String(filePath) + "\n");
+              }
+            ' "$manifest_path"
+          )
 
-            asset_name="Space-Agent-$RELEASE_VERSION-$platform-$arch.$extension"
-            upload_file="$upload_dir/$asset_name"
-
-            if [ -e "$upload_file" ]; then
-              echo "Duplicate staged release asset name: $asset_name" >&2
-              exit 1
-            fi
-
-            ln "$file" "$upload_file" || cp "$file" "$upload_file"
-            upload_files+=("$upload_file")
-            stale_asset_names+=("$(basename "$file")")
-            stale_asset_names+=("$artifact_dir-$(basename "$file")")
-            printf '%s -> %s\n' "$file" "$asset_name"
-          done
+          if [ "${#upload_files[@]}" -eq 0 ]; then
+            echo "No release artifacts were staged for upload." >&2
+            exit 1
+          fi
 
           for stale_asset_name in "${stale_asset_names[@]}"; do
+            [ -n "$stale_asset_name" ] || continue
             gh release delete-asset "$RELEASE_TAG" "$stale_asset_name" --yes >/dev/null 2>&1 || true
           done
 

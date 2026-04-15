@@ -10,6 +10,7 @@ const {
 const { resolveDesktopBuildVersion } = require("./release-version");
 const PACKAGE_JSON_PATH = path.join(PROJECT_ROOT, "package.json");
 const { build, Platform, Arch, DIR_TARGET } = loadPackagingDependency("electron-builder");
+const { serializeToYaml } = loadPackagingDependency("builder-util");
 const ELECTRON_PACKAGE = loadPackagingDependency("electron/package.json");
 const ELECTRON_DIST_PATH = path.join(
   path.dirname(resolvePackagingDependency("electron/package.json")),
@@ -51,6 +52,12 @@ const ARCH_VALUES = {
   x64: Arch.x64,
   arm64: Arch.arm64,
   universal: Arch.universal
+};
+
+const PLATFORM_UPDATE_CHANNELS = {
+  macos: "metadata-latest",
+  windows: "metadata-latest-windows",
+  linux: "metadata-latest"
 };
 
 function readPackageJson() {
@@ -229,6 +236,39 @@ function maybeStripMissingPath(object, key, warnings, description) {
   delete object[key];
 }
 
+function resolvePlatformUpdateChannel(platformSpec) {
+  return PLATFORM_UPDATE_CHANNELS[platformSpec.key] || "metadata-latest";
+}
+
+function normalizePublishEntries(value) {
+  const entries = Array.isArray(value) ? value : value == null ? [] : [value];
+  return entries
+    .filter((entry) => entry !== null && entry !== undefined)
+    .map((entry) => (typeof entry === "string" ? { provider: entry } : { ...entry }))
+    .filter((entry) => typeof entry.provider === "string" && entry.provider.trim());
+}
+
+function applyPlatformPublishConfig(buildConfig, platformConfig, platformSpec) {
+  const rootPublishEntries = normalizePublishEntries(buildConfig.publish);
+  const platformPublishEntries = normalizePublishEntries(platformConfig.publish);
+  const sourceEntries = platformPublishEntries.length ? platformPublishEntries : rootPublishEntries;
+
+  if (!sourceEntries.length) {
+    return;
+  }
+
+  const channel = resolvePlatformUpdateChannel(platformSpec);
+  const configuredEntries = sourceEntries.map((entry) => ({
+    ...entry,
+    channel
+  }));
+
+  platformConfig.publish =
+    Array.isArray(platformConfig.publish) || (!platformPublishEntries.length && Array.isArray(buildConfig.publish))
+      ? configuredEntries
+      : configuredEntries[0];
+}
+
 function createBuildConfig(platformSpec, options) {
   const packageJson = readPackageJson();
   const buildConfig = cloneBuildConfig(packageJson);
@@ -257,6 +297,7 @@ function createBuildConfig(platformSpec, options) {
     platformConfig.notarize = false;
   }
 
+  applyPlatformPublishConfig(buildConfig, platformConfig, platformSpec);
   buildConfig[platformSpec.configKey] = platformConfig;
   buildConfig.directories = {
     ...(buildConfig.directories || {}),
@@ -274,6 +315,7 @@ function createBuildConfig(platformSpec, options) {
   return {
     buildConfig,
     buildVersion,
+    packageJson,
     warnings
   };
 }
@@ -282,6 +324,69 @@ function createTargets(platformSpec, options) {
   const targetNames = options.dir ? DIR_TARGET : platformSpec.defaultTargets;
   const archValues = options.archs.map((archName) => ARCH_VALUES[archName]);
   return platformSpec.builderPlatform.createTarget(targetNames, ...archValues);
+}
+
+function resolveUpdaterCacheDirName(packageJson, buildConfig) {
+  const baseName = String(packageJson.name || buildConfig.productName || "app")
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+
+  return `${baseName || "app"}-updater`;
+}
+
+function resolvePrimaryPublishConfig(buildConfig, platformSpec) {
+  const platformConfig = buildConfig[platformSpec.configKey] || {};
+  const platformPublishEntries = normalizePublishEntries(platformConfig.publish);
+  const rootPublishEntries = normalizePublishEntries(buildConfig.publish);
+  return platformPublishEntries[0] || rootPublishEntries[0] || null;
+}
+
+function resolveMacDirAppPath(outputDir, productName, archName) {
+  return path.join(
+    resolveProjectPath(outputDir),
+    `mac-${archName === "universal" ? "universal" : archName}`,
+    `${productName}.app`
+  );
+}
+
+function writeMacDirBuildUpdateConfig(options, buildConfig, packageJson, platformSpec) {
+  if (!options.dir) {
+    return [];
+  }
+
+  const publishConfig = resolvePrimaryPublishConfig(buildConfig, platformSpec);
+  if (!publishConfig) {
+    return [];
+  }
+
+  const productName = buildConfig.productName || packageJson.productName || packageJson.name;
+  const appUpdateConfig = {
+    ...publishConfig,
+    updaterCacheDirName: resolveUpdaterCacheDirName(packageJson, buildConfig)
+  };
+  const writtenPaths = [];
+
+  options.archs.forEach((archName) => {
+    const resourcesDir = path.join(
+      resolveMacDirAppPath(buildConfig.directories.output, productName, archName),
+      "Contents",
+      "Resources"
+    );
+
+    if (!fs.existsSync(resourcesDir)) {
+      throw new Error(
+        `Expected macOS unpacked app resources at ${path.relative(PROJECT_ROOT, resourcesDir)} after packaging.`
+      );
+    }
+
+    const appUpdateConfigPath = path.join(resourcesDir, "app-update.yml");
+    fs.writeFileSync(appUpdateConfigPath, serializeToYaml(appUpdateConfig));
+    writtenPaths.push(appUpdateConfigPath);
+  });
+
+  return writtenPaths;
 }
 
 function printHelp(platformSpec) {
@@ -342,7 +447,7 @@ async function runDesktopPackaging(platformKey, argv = process.argv.slice(2)) {
     return [];
   }
 
-  const { buildConfig, buildVersion, warnings } = createBuildConfig(platformSpec, options);
+  const { buildConfig, buildVersion, packageJson, warnings } = createBuildConfig(platformSpec, options);
   printHostNote(platformSpec);
 
   if (options.dryRun) {
@@ -360,7 +465,14 @@ async function runDesktopPackaging(platformKey, argv = process.argv.slice(2)) {
     projectDir: PROJECT_ROOT,
     config: buildConfig,
     targets: createTargets(platformSpec, options),
-    publish: "never"
+    publish: null
+  });
+
+  const localUpdateConfigPaths =
+    platformSpec.key === "macos" ? writeMacDirBuildUpdateConfig(options, buildConfig, packageJson, platformSpec) : [];
+
+  localUpdateConfigPaths.forEach((appUpdateConfigPath) => {
+    console.log(`Wrote ${path.relative(PROJECT_ROOT, appUpdateConfigPath)} for local updater testing.`);
   });
 
   if (options.dir) {

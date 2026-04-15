@@ -6,7 +6,7 @@
   "author": "Jan Tomasek",
   "repository": {
     "type": "git",
-    "url": "https://github.com/agent0ai/agent-one.git"
+    "url": "https://github.com/agent0ai/space-agent.git"
   },
   "main": "packaging/desktop/main.js",
   "scripts": {
@@ -37,13 +37,15 @@
     "publish": {
       "provider": "github",
       "owner": "agent0ai",
-      "repo": "agent-one",
+      "repo": "space-agent",
       "releaseType": "release"
     },
     "files": [
       "space",
       "space.js",
       "app/**/*",
+      "!app/L1/**/*",
+      "!app/L2/**/*",
       "commands/**/*",
       "server/**/*",
       "packaging/desktop/**/*",

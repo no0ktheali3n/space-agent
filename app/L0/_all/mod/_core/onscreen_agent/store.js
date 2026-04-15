@@ -10,6 +10,7 @@ import { renderMarkdown } from "/mod/_core/framework/js/markdown-frontmatter.js"
 import { DEFAULT_MODEL_INPUT, DTYPE_OPTIONS, normalizeHuggingFaceModelInput } from "/mod/_core/huggingface/helpers.js";
 import { getHuggingFaceManager } from "/mod/_core/huggingface/manager.js";
 import { positionPopover } from "/mod/_core/visual/chrome/popover.js";
+import { showToast } from "/mod/_core/visual/chrome/toast.js";
 import { closeDialog, openDialog } from "/mod/_core/visual/forms/dialog.js";
 import { countTextTokens } from "/mod/_core/framework/js/token-count.js";
 import {
@@ -389,6 +390,16 @@ function createStreamingAssistantMessage() {
 function shouldHideComposerStatus(status) {
   const normalizedStatus = typeof status === "string" ? status.trim() : "";
   return HIDDEN_COMPOSER_STATUS_TEXTS.has(normalizedStatus);
+}
+
+function getOnscreenAgentErrorMessage(error, fallbackMessage = "Something went wrong.") {
+  const errorMessage = typeof error?.message === "string" ? error.message.trim() : "";
+  const fallback = typeof fallbackMessage === "string" ? fallbackMessage.trim() : "";
+  return errorMessage || fallback || "Something went wrong.";
+}
+
+function logOnscreenAgentError(context, error) {
+  console.error(`[onscreen-agent] ${context}`, error);
 }
 
 function cloneConversationMessage(message) {
@@ -1365,6 +1376,27 @@ const model = {
     }
 
     return statusText === "Ready." ? "Ready. Message Space Agent..." : statusText;
+  },
+
+  reportError(context, error, options = {}) {
+    const message = getOnscreenAgentErrorMessage(error, options.fallbackMessage);
+    logOnscreenAgentError(context, error);
+    showToast(message, {
+      durationMs: options.durationMs,
+      tone: "error"
+    });
+
+    if (options.preserveStatus === true) {
+      return message;
+    }
+
+    if (typeof options.nextStatus === "string") {
+      this.status = options.nextStatus.trim();
+      return message;
+    }
+
+    this.status = "Ready.";
+    return message;
   },
 
   get composerActionMenuActions() {
@@ -2479,7 +2511,9 @@ const model = {
         systemPrompt: this.systemPrompt
       });
     } catch (error) {
-      this.status = error.message;
+      this.reportError("persisting overlay config", error, {
+        preserveStatus: true
+      });
     }
   },
 
@@ -3129,7 +3163,9 @@ const model = {
       }
     })()
       .catch((error) => {
-        this.status = error.message;
+        this.reportError("persisting overlay history", error, {
+          preserveStatus: true
+        });
       })
       .finally(() => {
         this.historyPersistPromise = null;
@@ -3229,7 +3265,9 @@ const model = {
 
         if (this.hasConfiguredLocalModel(this.settings)) {
           void this.autoLoadConfiguredLocalModel(this.settings).catch((error) => {
-            this.status = error.message;
+            this.reportError("preloading the configured local model", error, {
+              preserveStatus: true
+            });
           });
         }
       } catch (error) {
@@ -3238,7 +3276,9 @@ const model = {
           reflow: false
         });
         this.isShellVisible = true;
-        this.status = error.message;
+        this.reportError("initializing the overlay runtime", error, {
+          nextStatus: ""
+        });
         this.render();
       }
     })();
@@ -4262,7 +4302,9 @@ const model = {
 
     this.systemPromptDraft = this.systemPrompt;
     void this.warmSettingsDraftLocalProvider().catch((error) => {
-      this.status = error.message;
+      this.reportError("warming the local-provider settings draft", error, {
+        preserveStatus: true
+      });
     });
     openDialog(resolveDialogRef(this.refs, "settingsDialog", SETTINGS_DIALOG_ELEMENT_ID));
   },
@@ -4280,7 +4322,9 @@ const model = {
     if (this.isSettingsDraftUsingLocalProvider) {
       this.prefillSettingsDraftDefaultHuggingFaceModel();
       void this.warmSettingsDraftLocalProvider().catch((error) => {
-        this.status = error.message;
+        this.reportError("warming the local-provider settings draft", error, {
+          preserveStatus: true
+        });
       });
     }
   },
@@ -4328,7 +4372,7 @@ const model = {
       }))
       .then(() => this.syncHuggingFaceFromManager())
       .catch((error) => {
-        this.status = error.message;
+        this.reportError("unloading the selected local model", error);
       });
   },
 
@@ -4375,7 +4419,7 @@ const model = {
       })
       .then(() => this.syncHuggingFaceFromManager())
       .catch((error) => {
-        this.status = error.message;
+        this.reportError("loading or unloading the selected local model", error);
       });
   },
 
@@ -4414,7 +4458,9 @@ const model = {
         }
       }
     } catch (error) {
-      this.status = error.message;
+      this.reportError("validating chat settings", error, {
+        preserveStatus: true
+      });
       return;
     }
 
@@ -4448,11 +4494,13 @@ const model = {
 
       if (provider === config.ONSCREEN_AGENT_LLM_PROVIDER.LOCAL) {
         void this.autoLoadConfiguredLocalModel(this.settings).catch((error) => {
-          this.status = error.message;
+          this.reportError("preparing the configured local model", error, {
+            preserveStatus: true
+          });
         });
       }
     } catch (error) {
-      this.status = error.message;
+      this.reportError("saving chat settings", error);
     }
   },
 
@@ -4488,7 +4536,7 @@ const model = {
       openDialog(resolveDialogRef(this.refs, "historyDialog", HISTORY_DIALOG_ELEMENT_ID));
       this.schedulePromptHistoryScroll(-1);
     } catch (error) {
-      this.status = error.message;
+      this.reportError("opening the prompt history dialog", error);
     }
   },
 
@@ -4854,7 +4902,7 @@ const model = {
     try {
       await this.refreshHistoryMetrics();
     } catch (error) {
-      this.status = error.message;
+      this.reportError("refreshing prompt history before compaction", error);
       return;
     }
 
@@ -4963,7 +5011,7 @@ const model = {
         this.status = `Context too large, retrying with trimmed history (attempt ${attempt + 2}/${MAX_COMPACT_TRIM_ATTEMPTS})...`;
       }
     } catch (error) {
-      this.status = error.message;
+      this.reportError("compacting chat history", error);
       return false;
     } finally {
       this.isCompactingHistory = false;
@@ -5013,7 +5061,7 @@ const model = {
       try {
         preparedRequest = await this.preparePromptRequest(requestMessages);
       } catch (error) {
-        this.status = error.message;
+        this.reportError("preparing the next agent request", error);
         return "failed";
       }
 
@@ -5045,7 +5093,7 @@ const model = {
         try {
           preparedRequest = await this.preparePromptRequest(requestMessages);
         } catch (error) {
-          this.status = error.message;
+          this.reportError("preparing the retry request after history compaction", error);
           return "failed";
         }
       }
@@ -5239,7 +5287,7 @@ const model = {
         this.status = "Ready.";
       }
     } catch (error) {
-      this.status = error.message;
+      this.reportError("running the submission loop", error);
     } finally {
       this.activeRequestController = null;
       this.isSending = false;
@@ -5375,7 +5423,7 @@ const model = {
       this.executionOutputOverrides[messageId] = execution.createExecutionOutputSnapshots(executionResults);
       this.status = "Execution refreshed.";
     } catch (error) {
-      this.status = error.message;
+      this.reportError("rerunning an execution block", error);
     } finally {
       this.isSending = false;
       this.rerunningMessageId = "";

@@ -116,4 +116,6 @@ This means the admin agent reuses the same browser-local assets, worker state, a
 
 The admin shell mounts the admin tabs together, including the agent, Files, Time Travel, and Modules tabs.
 
+When the mirrored admin topbar inject host above the tab content is unused, it should collapse completely instead of reserving a phantom layout row. The admin agent depends on that shell behavior so its composer stays pinned to the bottom edge of the admin pane and only the thread history scrolls.
+
 Admin-agent CSS may tune shared visual primitives for the agent surface, but those selectors must stay scoped under `.admin-agent-root`. Unscoped rules for `.secondary-button`, `.primary-button`, `.confirm-button`, or related visual primitives will leak into other admin panels that reuse the same shared component stack.

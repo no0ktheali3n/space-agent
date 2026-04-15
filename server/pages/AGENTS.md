@@ -75,7 +75,7 @@ Current public shell assets:
 - must stay safe even when routed customware is broken
 - must not depend on authenticated `/mod/...` assets
 - is served for launcher-eligible sessions; in multi-user mode, unauthenticated requests are redirected to `/login` before this shell loads
-- owns the firmware-backed launcher UI that links to `/` and `/admin`, labeled as Enter Space and Admin Mode
+- owns the firmware-backed launcher UI that links to `/` and `/admin`, labeled as Enter Space and Admin Mode, and when the Electron preload bridge reports a packaged desktop runtime with updater support it also runs a background update check, reveals an update button below `Admin Mode` only after a newer bundle is available or ready to install, and collapses update-check failures behind a `Could not check updates` disclosure that expands into left-aligned raw details
 - declares the shared Space Agent transparent-helmet favicon set, including ICO fallback, PNG browser and install icons, Apple touch icon, and the `Enter Space | Space Agent` document title
 - runs the shared public-shell browser compatibility gate from `server/pages/res/browser-compat.js` before launcher logic starts, and renders the same blocking message contract as `/login` when the browser is missing required runtime features for the later app shell
 - renders the same centered footer treatment as `/login`: white semi-transparent outbound icons for GitHub, Discord, X, and a slightly larger Agent Zero logo in the last slot, followed by the injected `SPACE_PROJECT_VERSION` value beneath that icon row

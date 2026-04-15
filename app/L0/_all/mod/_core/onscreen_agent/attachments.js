@@ -1,5 +1,10 @@
 const ATTACHMENT_ID_PREFIX = "attachment";
 const DEFAULT_ATTACHMENT_TYPE = "application/octet-stream";
+export const MESSAGE_PROMPT_PART_BLOCK = Object.freeze({
+  ASSISTANT: "assistant",
+  FRAMEWORK: "framework",
+  USER: "user"
+});
 
 function createAttachmentId() {
   return `${ATTACHMENT_ID_PREFIX}-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
@@ -106,6 +111,35 @@ function buildAttachmentListLines(attachments) {
   });
 }
 
+function buildAttachmentListBlock(attachments) {
+  if (!Array.isArray(attachments) || !attachments.length) {
+    return "";
+  }
+
+  return ["Attachments↓", ...buildAttachmentListLines(attachments)].join("\n");
+}
+
+function buildAttachmentRuntimeAccessBlock(messageId, attachments) {
+  if (!Array.isArray(attachments) || !attachments.length) {
+    return "";
+  }
+
+  const availabilityNote = attachments.some((attachment) => !attachment.available)
+    ? "Some files listed below are metadata-only because the page was reloaded. Those bytes are no longer readable in JavaScript."
+    : "These files are live in the browser runtime for this message.";
+
+  return [
+    "Chat runtime access↓",
+    "The current thread is available in JavaScript as `space.chat`.",
+    "Read current messages with `space.chat.messages`.",
+    availabilityNote,
+    "Read live attachments with `space.chat.attachments.current()`, `space.chat.attachments.forMessage(\"" +
+      messageId +
+      "\")`, or `space.chat.attachments.get(\"<attachment-id>\")`.",
+    "Each attachment object exposes `id`, `messageId`, `name`, `type`, `size`, `lastModified`, `file`, and async methods `text()`, `json()`, `arrayBuffer()`, `dataUrl()`."
+  ].join("\n");
+}
+
 export function formatAttachmentSize(bytes) {
   const normalizedBytes = normalizeAttachmentSize(bytes);
 
@@ -179,35 +213,61 @@ export function normalizeStoredAttachment(attachment) {
   };
 }
 
-export function buildMessageContentForApi(message) {
+export function buildMessagePromptParts(message) {
   const content = typeof message?.content === "string" ? message.content.trim() : "";
   const attachments = Array.isArray(message?.attachments)
     ? message.attachments.map((attachment) => serializeAttachmentMetadata(attachment))
     : [];
+  const isFrameworkMessage = Boolean(typeof message?.kind === "string" ? message.kind.trim() : "");
 
-  if (message?.role !== "user" || !attachments.length) {
-    return content;
+  if (message?.role === "assistant") {
+    return content
+      ? [{
+          blockType: MESSAGE_PROMPT_PART_BLOCK.ASSISTANT,
+          content
+        }]
+      : [];
   }
 
+  if (message?.role !== "user") {
+    return [];
+  }
+
+  if (isFrameworkMessage || !attachments.length) {
+    return content
+      ? [{
+          blockType: isFrameworkMessage ? MESSAGE_PROMPT_PART_BLOCK.FRAMEWORK : MESSAGE_PROMPT_PART_BLOCK.USER,
+          content
+        }]
+      : [];
+  }
+
+  const attachmentListBlock = buildAttachmentListBlock(attachments);
   const messageId = typeof message.id === "string" ? message.id : "current-user-message";
-  const availabilityNote = attachments.some((attachment) => !attachment.available)
-    ? "Some files listed below are metadata-only because the page was reloaded. Those bytes are no longer readable in JavaScript."
-    : "These files are live in the browser runtime for this message.";
+  const runtimeAccessBlock = buildAttachmentRuntimeAccessBlock(messageId, attachments);
+  const userContent = [content, attachmentListBlock].filter(Boolean).join("\n\n");
 
-  const attachmentBlock = [
-    "Chat runtime access↓",
-    "The current thread is available in JavaScript as `space.chat`.",
-    "Read current messages with `space.chat.messages`.",
-    availabilityNote,
-    "Read live attachments with `space.chat.attachments.current()`, `space.chat.attachments.forMessage(\"" +
-      messageId +
-      "\")`, or `space.chat.attachments.get(\"<attachment-id>\")`.",
-    "Each attachment object exposes `id`, `messageId`, `name`, `type`, `size`, `lastModified`, `file`, and async methods `text()`, `json()`, `arrayBuffer()`, `dataUrl()`.",
-    "Attachments↓",
-    ...buildAttachmentListLines(attachments)
-  ].join("\n");
+  return [
+    userContent
+      ? {
+          blockType: MESSAGE_PROMPT_PART_BLOCK.USER,
+          content: userContent
+        }
+      : null,
+    runtimeAccessBlock
+      ? {
+          blockType: MESSAGE_PROMPT_PART_BLOCK.FRAMEWORK,
+          content: runtimeAccessBlock
+        }
+      : null
+  ].filter(Boolean);
+}
 
-  return content ? `${content}\n\n${attachmentBlock}` : attachmentBlock;
+export function buildMessageContentForApi(message) {
+  return buildMessagePromptParts(message)
+    .map((part) => part.content)
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export function createAttachmentRuntime() {

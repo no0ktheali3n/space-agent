@@ -5,12 +5,16 @@ This doc covers the CLI entry surface and the runtime-parameter system.
 ## Primary Sources
 
 - `AGENTS.md`
+- `.vscode/launch.json`
+- `README.md`
+- `package.json`
 - `commands/AGENTS.md`
 - `space.js`
 - `commands/serve.js`
 - `commands/supervise.js`
 - `commands/lib/supervisor/`
 - `commands/params.yaml`
+- `server/dev_server.js`
 - `server/lib/utils/runtime_params.js`
 
 ## CLI Entry
@@ -55,6 +59,18 @@ Runtime-state commands:
 The command tree prefers a small number of readable top-level commands with explicit subcommands instead of many tiny files.
 
 `node space version`, the `node space serve` startup banner, and the `/login` plus `/enter` public-shell version labels share the resolver in `server/lib/utils/project_version.js`. Source checkouts use the latest Git tag plus commit count when needed, while package-only runtimes can fall back to the package version for display.
+
+## Local Development Watcher
+
+`npm run dev` is the source-checkout development watcher, not a `space` CLI command.
+
+Current behavior:
+
+- runs `server/dev_server.js`
+- watches the `space`, `commands/`, and `server/` trees for file changes
+- restarts the child `node space serve` process after a short debounce when those watched sources change
+- leaves the watcher process alive when the child exits so the next file change can restart the server again
+- has a checked-in VS Code launch entry at `.vscode/launch.json` named `Dev Server (npm run dev)`; that launch config starts the same watcher and auto-attaches to spawned child Node processes so breakpoints in `server/` code still bind after auto-restarts
 
 ## `update`
 

@@ -319,6 +319,55 @@
         border-color: rgba(168, 186, 219, 0.24);
       }
 
+      .launcher-link-button {
+        appearance: none;
+        cursor: pointer;
+        font-family: inherit;
+      }
+
+      .launcher-link-button[disabled] {
+        cursor: progress;
+        opacity: 0.78;
+        transform: none;
+      }
+
+      .desktop-update-note {
+        width: 100%;
+        margin: -0.4rem 0 0;
+        color: var(--color-text-tertiary);
+        font-size: 0.92rem;
+        line-height: 1.45;
+        text-align: left;
+      }
+
+      .desktop-update-note-text {
+        margin: 0;
+      }
+
+      .desktop-update-note-details {
+        margin: 0;
+        padding: 0.78rem 0.92rem;
+        border: 1px solid rgba(148, 167, 201, 0.16);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .desktop-update-note-details summary {
+        cursor: pointer;
+        color: var(--color-text-secondary);
+        font-weight: 650;
+      }
+
+      .desktop-update-note-details-text {
+        margin: 0.72rem 0 0;
+        color: var(--color-text-tertiary);
+        font-family: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
+        font-size: 0.83rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
       .shell-footer {
         grid-column: 1 / -1;
         display: grid;
@@ -522,6 +571,21 @@
       <section class="launcher-actions" aria-label="Launcher actions" data-space-browser-compat-hide-on-fail>
         <a id="enter-space-link" class="launcher-link launcher-link-primary" href="/">Enter Space</a>
         <a id="enter-admin-link" class="launcher-link launcher-link-secondary" href="/admin">Admin Mode</a>
+        <button
+          id="desktop-update-button"
+          class="launcher-link launcher-link-secondary launcher-link-button"
+          type="button"
+          hidden
+        >
+          Update Now
+        </button>
+        <div id="desktop-update-note" class="desktop-update-note" aria-live="polite" hidden>
+          <p id="desktop-update-note-text" class="desktop-update-note-text" hidden></p>
+          <details id="desktop-update-note-details" class="desktop-update-note-details" hidden>
+            <summary id="desktop-update-note-summary">Could not check updates</summary>
+            <pre id="desktop-update-note-details-text" class="desktop-update-note-details-text"></pre>
+          </details>
+        </div>
       </section>
 
       <section
@@ -620,6 +684,12 @@
       const ENTER_TAB_ACCESS_KEY = "space.enter.tab-access";
       const introEnterSpaceLink = document.getElementById("enter-space-link");
       const introAdminLink = document.getElementById("enter-admin-link");
+      const desktopUpdateButton = document.getElementById("desktop-update-button");
+      const desktopUpdateNote = document.getElementById("desktop-update-note");
+      const desktopUpdateNoteText = document.getElementById("desktop-update-note-text");
+      const desktopUpdateNoteDetails = document.getElementById("desktop-update-note-details");
+      const desktopUpdateNoteSummary = document.getElementById("desktop-update-note-summary");
+      const desktopUpdateNoteDetailsText = document.getElementById("desktop-update-note-details-text");
       const TAU = Math.PI * 2;
       const TITLE_FLOAT_PARAMS = Object.freeze({
         movementDistance: 1.5,
@@ -678,6 +748,183 @@
         canvas: spaceThemeCanvas,
         motionQuery: prefersReducedMotion
       });
+
+      function setDesktopUpdateButtonBusy(isBusy) {
+        if (!desktopUpdateButton) {
+          return;
+        }
+
+        desktopUpdateButton.disabled = Boolean(isBusy);
+        desktopUpdateButton.setAttribute("aria-busy", isBusy ? "true" : "false");
+      }
+
+      function renderDesktopUpdateNote(message, { expandable = false, summaryText = "Could not check updates" } = {}) {
+        if (
+          !desktopUpdateNote ||
+          !desktopUpdateNoteText ||
+          !desktopUpdateNoteDetails ||
+          !desktopUpdateNoteSummary ||
+          !desktopUpdateNoteDetailsText
+        ) {
+          return;
+        }
+
+        const normalizedMessage = typeof message === "string" ? message.trim() : "";
+        const showExpandable = expandable && Boolean(normalizedMessage);
+        const shouldPreserveOpen =
+          showExpandable &&
+          !desktopUpdateNoteDetails.hidden &&
+          desktopUpdateNoteDetails.open &&
+          desktopUpdateNoteSummary.textContent === summaryText &&
+          desktopUpdateNoteDetailsText.textContent === normalizedMessage;
+
+        desktopUpdateNote.hidden = !normalizedMessage;
+
+        desktopUpdateNoteText.hidden = showExpandable || !normalizedMessage;
+        desktopUpdateNoteText.textContent = showExpandable ? "" : normalizedMessage;
+
+        desktopUpdateNoteDetails.hidden = !showExpandable;
+        desktopUpdateNoteDetails.open = showExpandable ? shouldPreserveOpen : false;
+        desktopUpdateNoteSummary.textContent = summaryText;
+        desktopUpdateNoteDetailsText.textContent = showExpandable ? normalizedMessage : "";
+      }
+
+      function renderDesktopUpdateState(updateStatus) {
+        if (!desktopUpdateButton || !desktopUpdateNote) {
+          return;
+        }
+
+        const state = updateStatus && typeof updateStatus === "object" ? updateStatus : {};
+        const statusKey = typeof state.state === "string" ? state.state : "idle";
+        const version = typeof state.version === "string" ? state.version.trim() : "";
+        let message = typeof state.message === "string" ? state.message.trim() : "";
+        let buttonLabel = "";
+        let showButton = false;
+        let noteExpandable = false;
+
+        if (statusKey === "update-available") {
+          buttonLabel = version ? "Update to " + version : "Update Now";
+          showButton = true;
+        } else if (statusKey === "downloading") {
+          buttonLabel = "Downloading Update...";
+          showButton = true;
+        } else if (statusKey === "downloaded") {
+          buttonLabel = "Restart to Update";
+          message = version
+            ? "Update " + version + " is ready to install. Restart the app to finish installing."
+            : "Update ready to install. Restart the app to finish installing.";
+          showButton = true;
+        } else if (statusKey === "error") {
+          noteExpandable = Boolean(message);
+        }
+
+        desktopUpdateButton.hidden = !showButton;
+        desktopUpdateButton.textContent = buttonLabel || "Update Now";
+        setDesktopUpdateButtonBusy(statusKey === "downloading");
+
+        renderDesktopUpdateNote(
+          noteExpandable ? message : message,
+          noteExpandable
+            ? { expandable: true, summaryText: "Could not check updates" }
+            : { expandable: false }
+        );
+      }
+
+      async function initializeDesktopUpdateButton() {
+        if (!desktopUpdateButton || !desktopUpdateNote) {
+          return;
+        }
+
+        const desktopApi = window.spaceDesktop;
+        if (
+          !desktopApi ||
+          typeof desktopApi.getRuntimeInfo !== "function" ||
+          typeof desktopApi.checkForUpdates !== "function" ||
+          typeof desktopApi.downloadUpdate !== "function" ||
+          typeof desktopApi.installUpdate !== "function"
+        ) {
+          return;
+        }
+
+        let currentUpdateState = {};
+
+        function applyUpdateState(nextState) {
+          currentUpdateState = nextState && typeof nextState === "object" ? { ...nextState } : {};
+          renderDesktopUpdateState(currentUpdateState);
+        }
+
+        let runtimeInfo;
+        try {
+          runtimeInfo = await desktopApi.getRuntimeInfo();
+        } catch (error) {
+          console.error("[space-enter] Failed to read desktop runtime info.", error);
+          return;
+        }
+
+        if (!runtimeInfo?.isBundledApp || !runtimeInfo?.canCheckForUpdates) {
+          return;
+        }
+
+        applyUpdateState(runtimeInfo.updateStatus);
+
+        window.addEventListener("space-desktop:update-status", (event) => {
+          applyUpdateState(event && event.detail);
+        });
+
+        desktopUpdateButton.addEventListener("click", async () => {
+          if (desktopUpdateButton.disabled) {
+            return;
+          }
+
+          try {
+            if (currentUpdateState.state === "downloaded") {
+              await desktopApi.installUpdate();
+              return;
+            }
+
+            if (currentUpdateState.state !== "update-available") {
+              return;
+            }
+
+            applyUpdateState({
+              ...currentUpdateState,
+              state: "downloading",
+              message: "Downloading update..."
+            });
+
+            const result = await desktopApi.downloadUpdate();
+            if (result && result.ok === false && result.message) {
+              applyUpdateState({
+                ...currentUpdateState,
+                state: result.reason || "error",
+                message: result.message
+              });
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error || "Desktop update failed.");
+            console.error("[space-enter] Desktop update action failed.", error);
+            applyUpdateState({
+              ...currentUpdateState,
+              state: "error",
+              message
+            });
+          }
+        });
+
+        const shouldCheckForUpdates = !["checking", "update-available", "downloading", "downloaded"].includes(
+          currentUpdateState.state
+        );
+
+        if (shouldCheckForUpdates) {
+          try {
+            await desktopApi.checkForUpdates();
+          } catch (error) {
+            console.error("[space-enter] Automatic desktop update check failed.", error);
+          }
+        }
+      }
+
+      initializeDesktopUpdateButton();
 
       function setIntroTitlePose(x, y, rotation) {
         if (!introTitle) {
